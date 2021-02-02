@@ -12,5 +12,6 @@ Should work properly on Mac and Windows.
 You need NodeJS to run this project.
 
 ```
+npm install
 node index.js
 ``` 

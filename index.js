@@ -1,17 +1,24 @@
 const fs = require('fs');
 const readline = require('readline');
+const muteStream = require('mute-stream');
+
 
 const prefix = String.fromCharCode(27);
+
+const clearScreen = () => {
+	return prefix+"[2J";
+}
+
 const setAlternativeBuffer = () => {
 	process.stdout.write(prefix+"[?1049h");
 }
 
 const setMainBuffer = () => {
-	process.stdout.write(String.fromCharCode(27)+"[?1049l");
+	process.stdout.write(prefix+"[?1049l");
 }
 
 const beepNow = () => {
-  process.stdout.write('\x07');
+	process.stdout.write('\x07');
 }
 
 const cursorToPreviousLine =() => {
@@ -23,12 +30,17 @@ const eraseLine = () => {
 }
 
 const hideCursor = () => {
-  return prefix + '?25l'
+	return prefix + '[?25l';
+}
+ 
+const showCursor = () => {
+	return prefix + '[?25h';
 }
 
-const showCursor = () => {
-  return prefix + '?25h'
+const moveCursor = (element, row) => {
+	return prefix + '[' + row + ";"+element+"H"	
 }
+
 //more at http://ascii-table.com/ansi-escape-sequences-vt-100.php
 const style = () => {
 	let	attributes = "";
@@ -56,26 +68,87 @@ const style = () => {
 	return value;
 }
 
-setAlternativeBuffer();
-showCursor();
 
+setAlternativeBuffer();
+const terminalSize = {
+	width: process.stdout.columns,
+	height: process.stdout.rows
+}
+// process.stdout.write(hideCursor())
+// process.stdout.write(moveCursor(1, terminalSize.height));
+// style().cyan().write("*** command mode ***");
+// process.stdout.write(moveCursor(1, 1));
+
+
+const render = (terminalSize, lines, out, noNewLineForLastLine) => {
+	if (lines.length === 0) {
+		out.write(clearScreen());
+		out.write(moveCursor(1,1));
+	}
+	else {
+		out.write(clearScreen());
+		out.write(moveCursor(1,1));
+		for (let i =0; i < lines.length;i++) {
+			if ((i+1) === lines.length && noNewLineForLastLine) {
+				mutableOutput.write(lines[i]);
+			}
+			else {
+				console.log(lines[i]);
+			}
+		}	
+	}
+}
+
+const renderSubArray = (terminalSize, lines, out, from) => {
+	var part = lines.slice(from, from+terminalSize.height);
+
+	render(terminalSize, part, out, "noNewLineForLastLine");
+}
+
+const prepareLines = (input, terminalWidth) => {
+	let temp = JSON.stringify(input, null, 4).split("\n");
+
+	let result = [];
+	for (let i = 0; i < temp.length; i++) {
+		let parts = Math.floor(temp[i].length/terminalWidth)+1;
+
+		for (let j = 0; j < parts; j++) {
+			result.push(temp[i].substr(j*terminalWidth, terminalWidth));
+		}
+	}
+
+	return result;
+}
+
+
+const mutableOutput = new muteStream();
+mutableOutput.pipe(process.stdout);
 
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: mutableOutput,
+  prompt:""
 });
 
 
+let bufferLines = [];
 let records = [];
+let recordsLines = [];
 let mode = "command"; //title, content
 let state = {};
 let SAVE_FILE_PATH = './data.json';
+let viewStartLine = -1; //currently for records command
 rl.on('line', (line) => {
 	let normalized = line.trim().toLowerCase();
 
 	if (mode === "command") {
 		if (normalized === 'clear') {
-			console.clear()
+			bufferLines = [];
+			render(terminalSize, bufferLines, process.stdout);
+		}
+		else if (normalized === "position") {
+			//it will be caught by keypress in async flow
+			rl.write(prefix + "[6n");
 		}
 		else if (normalized === 'title') {
 			mode = "title";
@@ -86,23 +159,18 @@ rl.on('line', (line) => {
 		else if (normalized === 'state') {
 			console.log(JSON.stringify(state));
 		}
-			else if (normalized === "now") {
+		else if (normalized === "now") {
 			state.date = new Date().toISOString();
-			cursorToPreviousLine()
-			eraseLine();
 		}
 		else if (normalized === "push") {
 			if (state.title === undefined) {
 				console.log("Title can't be empty");
-				return
 			}
 			else if (state.content === undefined) {
 				console.log("Content can't be empty");
-				return
 			}
 			else if (state.date === undefined) {
 				console.log("Date can't be empty");
-				return
 			}
 			else {
 				records.push(state);
@@ -110,7 +178,14 @@ rl.on('line', (line) => {
 			}
 		}
 		else if (normalized === "records") {
-			console.log(JSON.stringify(records, null, 4));
+			mode = "records";
+			recordsLines = prepareLines(records, terminalSize.width);
+			mutableOutput.write(hideCursor());
+			let renderFrom = recordsLines.length - terminalSize.height;//because ends with newline
+			viewStartLine = renderFrom >= 0 ? renderFrom : 0;
+			renderSubArray(terminalSize, recordsLines, mutableOutput, viewStartLine);
+
+			mutableOutput.mute();
 		}
 		else if (normalized === "save") {
 			fs.writeFileSync(SAVE_FILE_PATH, JSON.stringify(records, null, 4));
@@ -126,6 +201,7 @@ rl.on('line', (line) => {
 		else {
 			beepNow()
 		}
+		bufferLines.push(line)
 	}
 	else if (mode === "title") {
 		if (normalized === ""){
@@ -160,5 +236,46 @@ rl.on('line', (line) => {
 
 rl.on('close', () => {setMainBuffer(); process.exit();});
 
-//for upcoming feature
-// process.stdin.on('keypress', (s, key) => {console.log(s, key)});
+//this is required to get cursor position
+let ignoreKeypress = true;
+process.stdin.on('keypress', (s, key) => {
+	if (!ignoreKeypress) {
+		console.log(s, key)
+	}
+
+	if (mode === "records") {
+		if (key.name === "escape") {
+			mode = "command";
+			mutableOutput.unmute();
+			mutableOutput.write(showCursor())
+			render(terminalSize, bufferLines, mutableOutput);
+		}
+		else if (key.name === "down") {
+			if ((viewStartLine + terminalSize.height) < (recordsLines.length)) {
+				mutableOutput.unmute();
+				viewStartLine += 1;
+				renderSubArray(terminalSize, recordsLines, mutableOutput, viewStartLine);
+				mutableOutput.mute();
+			}
+			else {
+				beepNow()
+			}
+		}
+		else if (key.name === "up") {
+			if (viewStartLine >0) {
+				mutableOutput.unmute();
+				viewStartLine -= 1;
+				renderSubArray(terminalSize, recordsLines, mutableOutput, viewStartLine);
+				mutableOutput.mute();
+			}
+			else {
+				beepNow()
+			}
+		}
+	}
+});
+
+process.stdout.on('resize', () => {
+  // console.log('screen size has changed!');
+  // console.log(`${process.stdout.columns}x${process.stdout.rows}`);
+});
