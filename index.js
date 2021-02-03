@@ -69,17 +69,6 @@ const style = () => {
 }
 
 
-setAlternativeBuffer();
-const terminalSize = {
-	width: process.stdout.columns,
-	height: process.stdout.rows
-}
-// process.stdout.write(hideCursor())
-// process.stdout.write(moveCursor(1, terminalSize.height));
-// style().cyan().write("*** command mode ***");
-// process.stdout.write(moveCursor(1, 1));
-
-
 const render = (terminalSize, lines, out, noNewLineForLastLine) => {
 	if (lines.length === 0) {
 		out.write(clearScreen());
@@ -93,17 +82,20 @@ const render = (terminalSize, lines, out, noNewLineForLastLine) => {
 				mutableOutput.write(lines[i]);
 			}
 			else {
-				console.log(lines[i]);
+				mutableOutput.write(lines[i]+"\n");
 			}
 		}	
 	}
 }
 
-const renderSubArray = (terminalSize, lines, out, from) => {
+const renderData = (terminalSize, renderData, out) => {
+	let lines = renderData.lines;
+	let from = renderData.viewStartLine;
 	var part = lines.slice(from, from+terminalSize.height);
 
 	render(terminalSize, part, out, "noNewLineForLastLine");
 }
+
 
 const prepareLines = (input, terminalWidth) => {
 	let temp = JSON.stringify(input, null, 4).split("\n");
@@ -121,6 +113,15 @@ const prepareLines = (input, terminalWidth) => {
 }
 
 
+setAlternativeBuffer();
+process.stdout.write(showCursor())
+
+
+const terminalSize = {
+	width: process.stdout.columns,
+	height: process.stdout.rows
+}
+
 const mutableOutput = new muteStream();
 mutableOutput.pipe(process.stdout);
 
@@ -131,20 +132,25 @@ const rl = readline.createInterface({
 });
 
 
-let bufferLines = [];
+let commands = [];
 let records = [];
-let recordsLines = [];
+
+let recordsRenderData = {
+	lines: [],
+	viewStartLine: 0
+}
+
 let mode = "command"; //title, content
 let state = {};
 let SAVE_FILE_PATH = './data.json';
-let viewStartLine = -1; //currently for records command
+
 rl.on('line', (line) => {
 	let normalized = line.trim().toLowerCase();
 
 	if (mode === "command") {
 		if (normalized === 'clear') {
-			bufferLines = [];
-			render(terminalSize, bufferLines, process.stdout);
+			commands = [];
+			render(terminalSize, commands, process.stdout);
 		}
 		else if (normalized === "position") {
 			//it will be caught by keypress in async flow
@@ -152,25 +158,27 @@ rl.on('line', (line) => {
 		}
 		else if (normalized === 'title') {
 			mode = "title";
+			rl.write(state.title || "")
 		}
 		else if (normalized === 'content') {
 			mode = "content";
+			rl.write(state.content || "")
 		}
 		else if (normalized === 'state') {
-			console.log(JSON.stringify(state));
+			mutableOutput.write(JSON.stringify(state, null, 4)+"\n");
 		}
 		else if (normalized === "now") {
 			state.date = new Date().toISOString();
 		}
 		else if (normalized === "push") {
 			if (state.title === undefined) {
-				console.log("Title can't be empty");
+				mutableOutput.write("Title can't be empty"+"\n");
 			}
 			else if (state.content === undefined) {
-				console.log("Content can't be empty");
+				mutableOutput.write("Content can't be empty"+"\n");
 			}
 			else if (state.date === undefined) {
-				console.log("Date can't be empty");
+				mutableOutput.write("Date can't be empty"+"\n");
 			}
 			else {
 				records.push(state);
@@ -179,12 +187,11 @@ rl.on('line', (line) => {
 		}
 		else if (normalized === "records") {
 			mode = "records";
-			recordsLines = prepareLines(records, terminalSize.width);
+			recordsRenderData.lines = prepareLines(records, terminalSize.width);
+			let renderFrom = recordsRenderData.lines.length - terminalSize.height;
+			recordsRenderData.viewStartLine = renderFrom >= 0 ? renderFrom : 0;
 			mutableOutput.write(hideCursor());
-			let renderFrom = recordsLines.length - terminalSize.height;//because ends with newline
-			viewStartLine = renderFrom >= 0 ? renderFrom : 0;
-			renderSubArray(terminalSize, recordsLines, mutableOutput, viewStartLine);
-
+			renderData(terminalSize, recordsRenderData, mutableOutput);
 			mutableOutput.mute();
 		}
 		else if (normalized === "save") {
@@ -195,21 +202,23 @@ rl.on('line', (line) => {
 				records = JSON.parse(fs.readFileSync(SAVE_FILE_PATH));
 			}
 			catch (e) {
-				console.log("Failed.");
+				mutableOutput.write("Failed."+"\n");
 			}
 		}
 		else {
 			beepNow()
+			// mutableOutput.write(JSON.stringify(line)+"\n"); //nice debug option
 		}
-		bufferLines.push(line)
+		commands.push(line)
 	}
 	else if (mode === "title") {
 		if (normalized === ""){
-			rl.write("Write non-empty title or ");
+			mutableOutput.write("Write non-empty title or ");
 			style().bold().cyan().write("forget");
-			rl.write(".\n");
+			mutableOutput.write(".\n");
 		}
 		else if (normalized === "forget") {
+			commands.push(line);
 			mode = "command";
 		}
 		else {
@@ -219,9 +228,12 @@ rl.on('line', (line) => {
 	}
 	else if (mode === "content") {
 		if(normalized === "") {
-			console.log("Write non-empty content or forget.");
+			mutableOutput.write("Write non-empty title or ");
+			style().bold().cyan().write("forget");
+			mutableOutput.write(".\n");
 		}
 		else if (normalized === "forget") {
+			commands.push(line);
 			mode = "command";
 		}
 		else {
@@ -229,32 +241,44 @@ rl.on('line', (line) => {
 			mode = "command";
 		}
 	}
+	else if (mode === "records") {
+		//nothing
+	}
 	else {
 		beepNow();
 	}
 })
 
-rl.on('close', () => {setMainBuffer(); process.exit();});
 
-//this is required to get cursor position
-let ignoreKeypress = true;
+const exit = () => {setMainBuffer(); process.exit();}
+
+
+rl.on('close', exit);
+
+
 process.stdin.on('keypress', (s, key) => {
-	if (!ignoreKeypress) {
-		console.log(s, key)
+	if (mode === "command" && key && key.name === "escape") {
+		exit();
+	}
+
+	//to get position data
+	if (key && key.code === "[R") {
+		mutableOutput.write(JSON.stringify(key.sequence) +"\n");
 	}
 
 	if (mode === "records") {
-		if (key.name === "escape") {
-			mode = "command";
+		if (key.name === "escape" || key.name === "q") {
+			rl.write("\n");//this thing clears irrelevant input from stdin
 			mutableOutput.unmute();
+			render(terminalSize, commands, mutableOutput);
 			mutableOutput.write(showCursor())
-			render(terminalSize, bufferLines, mutableOutput);
+			mode = "command";
 		}
 		else if (key.name === "down") {
-			if ((viewStartLine + terminalSize.height) < (recordsLines.length)) {
+			if ((recordsRenderData.viewStartLine + terminalSize.height) < (recordsRenderData.lines.length)) {
 				mutableOutput.unmute();
-				viewStartLine += 1;
-				renderSubArray(terminalSize, recordsLines, mutableOutput, viewStartLine);
+				recordsRenderData.viewStartLine += 1;
+				renderData(terminalSize, recordsRenderData, mutableOutput);
 				mutableOutput.mute();
 			}
 			else {
@@ -262,10 +286,10 @@ process.stdin.on('keypress', (s, key) => {
 			}
 		}
 		else if (key.name === "up") {
-			if (viewStartLine >0) {
+			if (recordsRenderData.viewStartLine >0) {
 				mutableOutput.unmute();
-				viewStartLine -= 1;
-				renderSubArray(terminalSize, recordsLines, mutableOutput, viewStartLine);
+				recordsRenderData.viewStartLine -= 1;
+				renderData(terminalSize, recordsRenderData, mutableOutput);
 				mutableOutput.mute();
 			}
 			else {
@@ -275,7 +299,23 @@ process.stdin.on('keypress', (s, key) => {
 	}
 });
 
+
+//there is a hidden puzzle here
+//When you resize window... 
+//How to keep *same* part of records line on the top of the screen?
 process.stdout.on('resize', () => {
-  // console.log('screen size has changed!');
-  // console.log(`${process.stdout.columns}x${process.stdout.rows}`);
+	terminalSize.width = process.stdout.columns;
+	terminalSize.height = process.stdout.rows;
+
+	if (mode === "records") {
+		recordsRenderData.lines = prepareLines(records, terminalSize.width)
+		let renderFrom = recordsRenderData.lines.length - terminalSize.height;
+		recordsRenderData.viewStartLine = renderFrom >= 0 ? renderFrom : 0;
+		mutableOutput.unmute();
+		renderData(terminalSize, recordsRenderData, mutableOutput);
+		mutableOutput.mute();
+	}
+	else {
+		render(terminalSize, commands, mutableOutput);
+	}
 });
