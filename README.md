@@ -31,6 +31,7 @@ You can enter any of these commands:
 * records - allows to look at current records. Use arrows to navigate. ESC or q to exit.
 * save - save records to file
 * load - load records from file
+* thoughts - nice style of visualizing notes one by one. arrows to navigate and ESQ/q to exit.
 * position - currently under development. Needed to get cursor position.
 
 Hit ESC or Ctrl-C to exit.

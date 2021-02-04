@@ -42,7 +42,9 @@ const moveCursor = (element, row) => {
 }
 
 //more at http://ascii-table.com/ansi-escape-sequences-vt-100.php
-const style = () => {
+const style = (stream) => {
+	let writeStream = stream;
+
 	let	attributes = "";
 	//semicolons used when MORE than one attribute is set
 	let semicolonAwareAppend = (styleValue) => {
@@ -61,7 +63,7 @@ const style = () => {
 			return value;
 		},
 		write: (text) => {
-			process.stdout.write(prefix+"["+attributes+"m"+text+prefix+"[0m");
+			writeStream.write(prefix+"["+attributes+"m"+text+prefix+"[0m");
 		}
 	}
 
@@ -79,10 +81,10 @@ const render = (terminalSize, lines, out, noNewLineForLastLine) => {
 		out.write(moveCursor(1,1));
 		for (let i =0; i < lines.length;i++) {
 			if ((i+1) === lines.length && noNewLineForLastLine) {
-				mutableOutput.write(lines[i]);
+				out.write(lines[i]);
 			}
 			else {
-				mutableOutput.write(lines[i]+"\n");
+				out.write(lines[i]+"\n");
 			}
 		}	
 	}
@@ -112,6 +114,30 @@ const prepareLines = (input, terminalWidth) => {
 	return result;
 }
 
+const prepareThoughts =(input, terminalWidth) => {
+	let result = [];
+	for (let i = 0; i < input.length; i++) {
+		let thought = 
+			new Date(Date.parse(input[i].date)).toUTCString()
+			+"\n\n"+input[i].title +"\n\n"+input[i].content;
+
+		let temp = thought.split("\n")
+
+		let thoughtLines = [];
+		for (let j = 0; j < temp.length; j++) {
+			let parts = Math.floor(temp[j].length/terminalWidth)+1;
+
+			for (let k = 0; k < parts; k++) {
+				let line = temp[j].substr(k*terminalWidth, terminalWidth);
+				thoughtLines.push(line);
+			}
+		}
+
+		result.push(thoughtLines);
+	}
+
+	return result;
+}
 
 setAlternativeBuffer();
 process.stdout.write(showCursor())
@@ -140,6 +166,32 @@ let recordsRenderData = {
 	viewStartLine: 0
 }
 
+
+const getThoughtsRenderData = () => {
+	let value = {
+		lines: [],
+		viewStartLine: 0,
+		index: -1,
+		cachedThoughtsLines: []
+	};
+
+	let helpers = {
+		previousExists: () => {
+			return (value.index - 1) >= 0
+		},
+		nextExists: () => {
+			return (value.index +1) < value.cachedThoughtsLines.length;
+		}
+	}
+
+	for (const [name, helper] of Object.entries(helpers)) {
+		value[name] = helper;
+	}
+
+	return value;
+}
+let thoughtsRenderData = getThoughtsRenderData()
+
 let mode = "command"; //title, content
 let state = {};
 let SAVE_FILE_PATH = './data.json';
@@ -150,7 +202,7 @@ rl.on('line', (line) => {
 	if (mode === "command") {
 		if (normalized === 'clear') {
 			commands = [];
-			render(terminalSize, commands, process.stdout);
+			render(terminalSize, commands, mutableOutput);
 		}
 		else if (normalized === "position") {
 			//it will be caught by keypress in async flow
@@ -194,6 +246,22 @@ rl.on('line', (line) => {
 			renderData(terminalSize, recordsRenderData, mutableOutput);
 			mutableOutput.mute();
 		}
+		else if (normalized === "thoughts") {
+			if (records.length === 0) {
+				mutableOutput.write("No thoughts to remember now.\n")
+			}
+			else {
+				mode = "thoughts";
+				thoughtsRenderData.cachedThoughtsLines =
+					prepareThoughts(records, terminalSize.width);
+				thoughtsRenderData.viewStartLine = 0;
+				thoughtsRenderData.index = 0;
+				thoughtsRenderData.lines = thoughtsRenderData.cachedThoughtsLines[0];
+				mutableOutput.write(hideCursor());
+				renderData(terminalSize, thoughtsRenderData, mutableOutput);
+				mutableOutput.mute();
+			}
+		}
 		else if (normalized === "save") {
 			fs.writeFileSync(SAVE_FILE_PATH, JSON.stringify(records, null, 4));
 		}
@@ -214,7 +282,7 @@ rl.on('line', (line) => {
 	else if (mode === "title") {
 		if (normalized === ""){
 			mutableOutput.write("Write non-empty title or ");
-			style().bold().cyan().write("forget");
+			style(mutableOutput).bold().cyan().write("forget");
 			mutableOutput.write(".\n");
 		}
 		else if (normalized === "forget") {
@@ -229,7 +297,7 @@ rl.on('line', (line) => {
 	else if (mode === "content") {
 		if(normalized === "") {
 			mutableOutput.write("Write non-empty title or ");
-			style().bold().cyan().write("forget");
+			style(mutableOutput).bold().cyan().write("forget");
 			mutableOutput.write(".\n");
 		}
 		else if (normalized === "forget") {
@@ -241,7 +309,7 @@ rl.on('line', (line) => {
 			mode = "command";
 		}
 	}
-	else if (mode === "records") {
+	else if (mode === "records" || mode === "thoughts") {
 		//nothing
 	}
 	else {
@@ -297,6 +365,66 @@ process.stdin.on('keypress', (s, key) => {
 			}
 		}
 	}
+	else if (mode === "thoughts") {
+		if (key.name === "escape" || key.name === "q") {
+			rl.write("\n");//this thing clears irrelevant input from stdin
+			mutableOutput.unmute();
+			render(terminalSize, commands, mutableOutput);
+			mutableOutput.write(showCursor())
+			mode = "command";
+		}
+		else if (key.name === "down") {
+			if ((thoughtsRenderData.viewStartLine + terminalSize.height) < (thoughtsRenderData.lines.length)) {
+				mutableOutput.unmute();
+				thoughtsRenderData.viewStartLine += 1;
+				renderData(terminalSize, thoughtsRenderData, mutableOutput);
+				mutableOutput.mute();
+			}
+			else {
+				beepNow()
+			}
+		}
+		else if (key.name === "up") {
+			if (thoughtsRenderData.viewStartLine >0) {
+				thoughtsRenderData.viewStartLine -= 1;
+				mutableOutput.unmute();
+				renderData(terminalSize, thoughtsRenderData, mutableOutput);
+				mutableOutput.mute();
+			}
+			else {
+				beepNow()
+			}
+		}
+		else if (key.name === "left") {
+			if (thoughtsRenderData.previousExists()) {
+				thoughtsRenderData.index -=1;
+				thoughtsRenderData.viewStartLine = 0;
+				thoughtsRenderData.lines =
+					thoughtsRenderData.cachedThoughtsLines[thoughtsRenderData.index];
+				mutableOutput.unmute();
+				renderData(terminalSize, thoughtsRenderData, mutableOutput);
+				mutableOutput.mute();
+			}
+			else {
+				beepNow()
+			}
+		}
+		else if (key.name === "right") {
+			if (thoughtsRenderData.nextExists()) {
+				thoughtsRenderData.index +=1;
+				thoughtsRenderData.viewStartLine = 0;
+				thoughtsRenderData.lines =
+					thoughtsRenderData.cachedThoughtsLines[thoughtsRenderData.index];
+				mutableOutput.unmute();
+				renderData(terminalSize, thoughtsRenderData, mutableOutput);
+				mutableOutput.mute();
+			}
+			else {
+				beepNow()
+			}
+		}
+		
+	}
 });
 
 
@@ -313,6 +441,17 @@ process.stdout.on('resize', () => {
 		recordsRenderData.viewStartLine = renderFrom >= 0 ? renderFrom : 0;
 		mutableOutput.unmute();
 		renderData(terminalSize, recordsRenderData, mutableOutput);
+		mutableOutput.mute();
+	}
+	if (mode === "thoughts") {
+		thoughtsRenderData.cachedThoughtsLines =
+			prepareThoughts(records, terminalSize.width)
+		thoughtsRenderData.viewStartLine = 0;
+		thoughtsRenderData.index = 0;
+		thoughtsRenderData.lines = thoughtsRenderData.cachedThoughtsLines[0];
+
+		mutableOutput.unmute();
+		renderData(terminalSize, thoughtsRenderData, mutableOutput);
 		mutableOutput.mute();
 	}
 	else {
