@@ -27,9 +27,9 @@ const mutableOutput = new muteStream();
 mutableOutput.pipe(process.stdout);
 
 const rl = readline.createInterface({
-  input: process.stdin,
-  output: mutableOutput,
-  prompt: ""
+	input: process.stdin,
+	output: mutableOutput,
+	prompt: ""
 });
 
 
@@ -47,7 +47,7 @@ let mode = "command"; //title, content, records, thoughts
 let state = {};
 let SAVE_FILE_PATH = './data.json';
 
-rl.on('line', (line) => {
+const lineListener = (line) => {
 	let normalized = line.trim().toLowerCase();
 
 	if (mode === "command") {
@@ -163,16 +163,16 @@ rl.on('line', (line) => {
 	else {
 		beep(process.stdout);
 	}
-})
-
+};
 
 const exit = () => {setMainBuffer(process.stdout); process.exit();}
 
-
+rl.on('line', lineListener);
 rl.on('close', exit);
 
 
-process.stdin.on('keypress', (s, key) => {
+
+const keyPressListener = (s, key) => {
 	if (mode === "command" && key && key.name === "escape") {
 		exit();
 	}
@@ -269,13 +269,15 @@ process.stdin.on('keypress', (s, key) => {
 		}
 		
 	}
-});
+};
+
+process.stdin.on('keypress', keyPressListener);
 
 
 //there is a hidden puzzle here
 //When you resize window... 
 //How to keep *same* part of records line on the top of the screen?
-process.stdout.on('resize', () => {
+const resizeListener = () => {
 	terminalSize.width = process.stdout.columns;
 	terminalSize.height = process.stdout.rows;
 
@@ -297,4 +299,6 @@ process.stdout.on('resize', () => {
 	else {
 		render(terminalSize, commands, mutableOutput);
 	}
-});
+};
+
+process.stdout.on('resize', resizeListener);
