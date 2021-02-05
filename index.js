@@ -44,6 +44,9 @@ let recordsRenderData = {
 let thoughtsRenderData = getThoughtsRenderData()
 
 let mode = "command"; //title, content, records, thoughts
+let inputDelay = 300;
+let inputStart = 0;
+let noteIndex = -1; //for edit feature
 let state = {};
 let SAVE_FILE_PATH = './data.json';
 
@@ -67,11 +70,15 @@ const lineListener = (line) => {
 			mode = "content";
 			rl.write(state.content || "")
 		}
-		else if (normalized === 'state') {
-			mutableOutput.write(JSON.stringify(state, null, 4)+"\n");
+		else if (normalized === 'tags') {
+			mode = "tags";
+			rl.write(state.tags || "")
 		}
 		else if (normalized === "now") {
 			state.date = new Date().toISOString();
+		}
+		else if (normalized === 'state') {
+			mutableOutput.write(JSON.stringify(state, null, 4)+"\n");
 		}
 		else if (normalized === "push") {
 			if (state.title === undefined) {
@@ -82,6 +89,13 @@ const lineListener = (line) => {
 			}
 			else if (state.date === undefined) {
 				mutableOutput.write("Date can't be empty"+"\n");
+			}
+			else if (noteIndex !== -1) {
+				mutableOutput.write("You have to ");
+				style(mutableOutput).bold().cyan().write("drop");
+				mutableOutput.write(" current not or create ");
+				style(mutableOutput).bold().cyan().write("new");
+				mutableOutput.write(" before pushing.\n");
 			}
 			else {
 				records.push(state);
@@ -108,6 +122,7 @@ const lineListener = (line) => {
 				thoughtsRenderData.setIndex(0);
 				hideCursor(mutableOutput);
 				renderData(terminalSize, thoughtsRenderData, mutableOutput);
+				inputStart = new Date();
 			}
 		}
 		else if (normalized === "save") {
@@ -119,6 +134,20 @@ const lineListener = (line) => {
 			}
 			catch (e) {
 				mutableOutput.write("Failed."+"\n");
+			}
+		}
+		else if (normalized === "new") {
+			state = {};
+			noteIndex = -1;
+		}
+		else if (normalized === "drop") {
+			if (noteIndex === -1) {
+				mutableOutput.write("None of existing thoughts was chosen."+"\n");
+			}
+			else {
+				records.splice(noteIndex, 1);
+				state = {};
+				noteIndex = -1;
 			}
 		}
 		else {
@@ -144,7 +173,7 @@ const lineListener = (line) => {
 	}
 	else if (mode === "content") {
 		if(normalized === "") {
-			mutableOutput.write("Write non-empty title or ");
+			mutableOutput.write("Write non-empty contet or ");
 			style(mutableOutput).bold().cyan().write("forget");
 			mutableOutput.write(".\n");
 		}
@@ -154,6 +183,21 @@ const lineListener = (line) => {
 		}
 		else {
 			state.content = line.trim();
+			mode = "command";
+		}
+	}
+	else if (mode === "tags") {
+		if (normalized === ""){
+			mutableOutput.write("Write non-empty tags or ");
+			style(mutableOutput).bold().cyan().write("forget");
+			mutableOutput.write(".\n");
+		}
+		else if (normalized === "forget") {
+			commands.push(line);
+			mode = "command";
+		}
+		else {
+			state.tags = line.trim();
 			mode = "command";
 		}
 	}
@@ -171,6 +215,12 @@ rl.on('line', lineListener);
 rl.on('close', exit);
 
 
+const backToCommands = () => {
+	mutableOutput.unmute();
+	render(terminalSize, commands, mutableOutput);
+	showCursor(mutableOutput);
+	mode = "command";
+}
 
 const keyPressListener = (s, key) => {
 	if (mode === "command" && key && key.name === "escape") {
@@ -188,10 +238,7 @@ const keyPressListener = (s, key) => {
 			//yet it will be saved in built-in readline history
 			rl.write("\n");
 
-			mutableOutput.unmute();
-			render(terminalSize, commands, mutableOutput);
-			showCursor(mutableOutput);
-			mode = "command";
+			backToCommands();
 		}
 		else if (key.name === "down") {
 			if ((recordsRenderData.viewStartLine + terminalSize.height) < (recordsRenderData.lines.length)) {
@@ -220,10 +267,7 @@ const keyPressListener = (s, key) => {
 			//yet it will be saved in built-in readline history
 			rl.write("\n");
 
-			mutableOutput.unmute();
-			render(terminalSize, commands, mutableOutput);
-			showCursor(mutableOutput);
-			mode = "command";
+			backToCommands();
 		}
 		else if (key.name === "down") {
 			if ((thoughtsRenderData.viewStartLine + terminalSize.height) < (thoughtsRenderData.lines.length)) {
@@ -236,7 +280,7 @@ const keyPressListener = (s, key) => {
 			}
 		}
 		else if (key.name === "up") {
-			if (thoughtsRenderData.viewStartLine >0) {
+			if (thoughtsRenderData.viewStartLine > 0) {
 				thoughtsRenderData.viewStartLine -= 1;
 
 				renderData(terminalSize, thoughtsRenderData, mutableOutput);
@@ -267,7 +311,12 @@ const keyPressListener = (s, key) => {
 				beep(process.stdout)
 			}
 		}
-		
+		else if (key.name === "return" && (new Date() - inputStart) > 100) {
+			noteIndex = thoughtsRenderData.index;
+			state = records[noteIndex];
+
+			backToCommands()
+		}
 	}
 };
 
