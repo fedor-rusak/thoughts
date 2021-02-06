@@ -9,9 +9,9 @@ const {
 	showCursor,
 	style
 } = require("./lib/vt100-sequences");
-const {getThoughtsRenderData} = require("./lib/render-data");
-const {prepareLines, prepareThoughts} = require("./lib/data-helpers");
-const {render, renderData} = require("./lib/render-helpers");
+const {getThoughtsRenderData, getBrowseRenderData} = require("./lib/render-data");
+const {prepareLines, prepareThoughts, buildBrowseIndex} = require("./lib/data-helpers");
+const {render, renderData, renderDataWithTags} = require("./lib/render-helpers");
 
 
 setAlternativeBuffer(process.stdout);
@@ -41,7 +41,9 @@ let recordsRenderData = {
 	viewStartLine: 0
 }
 
-let thoughtsRenderData = getThoughtsRenderData()
+let thoughtsRenderData = getThoughtsRenderData();
+
+let browseRenderData = getBrowseRenderData();
 
 let mode = "command"; //title, content, records, thoughts
 let inputDelay = 300;
@@ -150,6 +152,25 @@ const lineListener = (line) => {
 				noteIndex = -1;
 			}
 		}
+		else if (normalized === "browse") {
+			if (records.length === 0) {
+				mutableOutput.write("No thoughts to browse now.\n")
+			}
+			else {
+				mode = "browse";
+				browseRenderData.cachedThoughtsLines =
+					prepareThoughts(records, terminalSize.width);
+				browseRenderData.internalIndex = buildBrowseIndex(records);
+				let firstThoughtOrderByDateASC = browseRenderData.internalIndex["date"][0];
+				browseRenderData.index = firstThoughtOrderByDateASC;
+				browseRenderData.indexPosition = 0;
+				browseRenderData.lines =
+					browseRenderData.cachedThoughtsLines[firstThoughtOrderByDateASC];
+
+				hideCursor(mutableOutput);
+				renderDataWithTags(terminalSize, browseRenderData, mutableOutput);
+			}
+		}
 		else {
 			beep(mutableOutput)
 			// mutableOutput.write(JSON.stringify(line)+"\n"); //nice debug option
@@ -201,7 +222,7 @@ const lineListener = (line) => {
 			mode = "command";
 		}
 	}
-	else if (mode === "records" || mode === "thoughts") {
+	else if (mode === "records" || mode === "thoughts" || mode === "browse") {
 		//nothing
 	}
 	else {
@@ -318,6 +339,47 @@ const keyPressListener = (s, key) => {
 			backToCommands()
 		}
 	}
+	else if (mode === "browse") {
+		if (key.name === "escape" || key.name === "q") {
+			//this thing clears irrelevant input from stdin
+			//yet it will be saved in built-in readline history
+			rl.write("\n");
+
+			backToCommands();
+		}
+		else if (key.name === "down") {
+			if ((browseRenderData.indexPosition - 1) >= 0) {
+				browseRenderData.indexPosition -= 1;
+				let tagSortIndex = 
+					browseRenderData.internalIndex[browseRenderData.tagForOrdering];
+				browseRenderData.index = tagSortIndex[browseRenderData.indexPosition];
+				browseRenderData.lines = 
+					browseRenderData.cachedThoughtsLines[browseRenderData.index];
+
+				renderDataWithTags(terminalSize, browseRenderData, mutableOutput);
+			}
+			else {
+				beep(process.stdout)
+			}
+		}
+		else if (key.name === "up") {
+			let newIndexPosition = browseRenderData.indexPosition + 1;
+			let tagSortIndex = 
+					browseRenderData.internalIndex[browseRenderData.tagForOrdering];
+
+			if (newIndexPosition < tagSortIndex.length) {
+				browseRenderData.indexPosition = newIndexPosition;
+				browseRenderData.index = tagSortIndex[newIndexPosition];
+				browseRenderData.lines = 
+					browseRenderData.cachedThoughtsLines[browseRenderData.index];
+
+				renderDataWithTags(terminalSize, browseRenderData, mutableOutput);
+			}
+			else {
+				beep(process.stdout)
+			}
+		}
+	}
 };
 
 process.stdin.on('keypress', keyPressListener);
@@ -344,6 +406,9 @@ const resizeListener = () => {
 		thoughtsRenderData.setIndex(thoughtsRenderData.index);
 
 		renderData(terminalSize, thoughtsRenderData, mutableOutput);
+	}
+	else if (mode === "browse") {
+		//TO-DO do stuff!
 	}
 	else {
 		render(terminalSize, commands, mutableOutput);

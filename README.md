@@ -36,5 +36,6 @@ You can enter any of these commands:
 * drop - for deleting chosen thought.
 * new - to start new note from scratch
 * position - currently under development. Needed to get cursor position.
+* browse - to see thoughts sorted by date. Up and down to navigate.
 
 Hit ESC or Ctrl-C to exit.
