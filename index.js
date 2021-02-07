@@ -7,9 +7,13 @@ const {
 	beep,
 	hideCursor,
 	showCursor,
+	deletePreviousLine,
 	style
 } = require("./lib/vt100-sequences");
-const {getThoughtsRenderData, getBrowseRenderData} = require("./lib/render-data");
+const {
+	getThoughtsRenderData,
+	getBrowseRenderData
+} = require("./lib/render-data");
 const {prepareLines, prepareThoughts, buildBrowseIndex} = require("./lib/data-helpers");
 const {render, renderData, renderDataWithTags} = require("./lib/render-helpers");
 
@@ -47,7 +51,7 @@ let browseRenderData = getBrowseRenderData();
 
 let mode = "command"; //title, content, records, thoughts
 let inputDelay = 300;
-let inputStart = 0;
+let inputStartDate = 0;
 let noteIndex = -1; //for edit feature
 let state = {};
 let SAVE_FILE_PATH = './data.json';
@@ -56,6 +60,7 @@ const lineListener = (line) => {
 	let normalized = line.trim().toLowerCase();
 
 	if (mode === "command") {
+		let result = "";
 		if (normalized === 'clear') {
 			commands = [];
 			render(terminalSize, commands, mutableOutput);
@@ -67,17 +72,21 @@ const lineListener = (line) => {
 		else if (normalized === 'title') {
 			mode = "title";
 			rl.write(state.title || "")
+			result = "mode = title"
 		}
 		else if (normalized === 'content') {
 			mode = "content";
 			rl.write(state.content || "")
+			result = "mode = content";
 		}
 		else if (normalized === 'tags') {
 			mode = "tags";
 			rl.write(state.tags || "")
+			result = "mode = tags";
 		}
 		else if (normalized === "now") {
 			state.date = new Date().toISOString();
+			result = "date set";
 		}
 		else if (normalized === 'state') {
 			mutableOutput.write(JSON.stringify(state, null, 4)+"\n");
@@ -102,6 +111,7 @@ const lineListener = (line) => {
 			else {
 				records.push(state);
 				state = {};
+				result = "Note added to records"
 			}
 		}
 		else if (normalized === "records") {
@@ -111,6 +121,7 @@ const lineListener = (line) => {
 			recordsRenderData.viewStartLine = renderFrom >= 0 ? renderFrom : 0;
 			hideCursor(mutableOutput);
 			renderData(terminalSize, recordsRenderData, mutableOutput);
+			result = "Records over. mode = command"
 		}
 		else if (normalized === "thoughts") {
 			if (records.length === 0) {
@@ -124,23 +135,27 @@ const lineListener = (line) => {
 				thoughtsRenderData.setIndex(0);
 				hideCursor(mutableOutput);
 				renderData(terminalSize, thoughtsRenderData, mutableOutput);
-				inputStart = new Date();
+				inputStartDate = new Date();
+				result = "Thoughts over. mode = command"
 			}
 		}
 		else if (normalized === "save") {
 			fs.writeFileSync(SAVE_FILE_PATH, JSON.stringify(records, null, 4));
+			result = "Success"
 		}
 		else if (normalized === "load") {
 			try {
 				records = JSON.parse(fs.readFileSync(SAVE_FILE_PATH));
+				result = "Success"
 			}
 			catch (e) {
-				mutableOutput.write("Failed."+"\n");
+				result = "Failed";
 			}
 		}
 		else if (normalized === "new") {
 			state = {};
 			noteIndex = -1;
+			result = "State clear. mode = command"
 		}
 		else if (normalized === "drop") {
 			if (noteIndex === -1) {
@@ -150,6 +165,7 @@ const lineListener = (line) => {
 				records.splice(noteIndex, 1);
 				state = {};
 				noteIndex = -1;
+				result = "Note dropped. mode = command"
 			}
 		}
 		else if (normalized === "browse") {
@@ -161,6 +177,7 @@ const lineListener = (line) => {
 				browseRenderData.cachedThoughtsLines =
 					prepareThoughts(records, terminalSize.width);
 				browseRenderData.internalIndex = buildBrowseIndex(records);
+				browseRenderData.tagForOrdering = "date";
 				let firstThoughtOrderByDateASC = browseRenderData.internalIndex["date"][0];
 				browseRenderData.index = firstThoughtOrderByDateASC;
 				browseRenderData.indexPosition = 0;
@@ -169,13 +186,24 @@ const lineListener = (line) => {
 
 				hideCursor(mutableOutput);
 				renderDataWithTags(terminalSize, browseRenderData, mutableOutput);
+				result = "Browsing over. mode = command"
 			}
 		}
 		else {
 			beep(mutableOutput)
 			// mutableOutput.write(JSON.stringify(line)+"\n"); //nice debug option
 		}
-		commands.push(line)
+
+		if (result === "") {
+			commands.push(line)
+		}
+		else {
+			deletePreviousLine(mutableOutput);
+			mutableOutput.write(line);
+			let resultText = " # "+result;
+			style(mutableOutput).grey().write(resultText+"\n");
+			commands.push([line, {color: "grey", text: resultText}]);
+		}
 	}
 	else if (mode === "title") {
 		if (normalized === ""){
@@ -244,7 +272,10 @@ const backToCommands = () => {
 }
 
 const keyPressListener = (s, key) => {
-	if (mode === "command" && key && key.name === "escape") {
+	if ((mode !== "records" 
+			&& mode !== "thoughts"
+			&& mode !== "browse") 
+		&& key && key.name === "escape") {
 		exit();
 	}
 
@@ -332,7 +363,7 @@ const keyPressListener = (s, key) => {
 				beep(process.stdout)
 			}
 		}
-		else if (key.name === "return" && (new Date() - inputStart) > 100) {
+		else if (key.name === "return" && (new Date() - inputStartDate) > 100) {
 			noteIndex = thoughtsRenderData.index;
 			state = records[noteIndex];
 
@@ -408,7 +439,14 @@ const resizeListener = () => {
 		renderData(terminalSize, thoughtsRenderData, mutableOutput);
 	}
 	else if (mode === "browse") {
-		//TO-DO do stuff!
+		browseRenderData.cachedThoughtsLines =
+			prepareThoughts(records, terminalSize.width);
+		let tagSortIndex = 
+			browseRenderData.internalIndex[browseRenderData.tagForOrdering];
+		browseRenderData.lines =
+			browseRenderData.cachedThoughtsLines[tagSortIndex[browseRenderData.indexPosition]];
+
+		renderDataWithTags(terminalSize, browseRenderData, mutableOutput);
 	}
 	else {
 		render(terminalSize, commands, mutableOutput);

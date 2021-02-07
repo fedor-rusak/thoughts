@@ -18,7 +18,7 @@ node index.js
 
 # How to use
 
-When you started thoughts process :) you see an empty page (as on 2021 February 3).
+When you started thoughts process :) you see an empty page (as on 2021 February 7).
 
 You can enter any of these commands:
 
@@ -26,14 +26,14 @@ You can enter any of these commands:
 * title - next input would be considered title for new note
 * content - same as title but for content
 * tags - for adding options tag information
-* now - adds date to current not
+* now - adds date to current note
 * state - show your current note data on screen
-* push - pushes (if no missing fields OR no thought was chosen) you not to internal list of records
-* records - allows to look at current records. Use arrows to navigate. ESC or q to exit.
+* push - pushes (if no missing fields OR no thought was chosen) your note to internal list of records
+* records - allows to look at current notes in technical format. Use arrows to navigate. ESC or q to exit.
 * save - save records to file
 * load - load records from file
-* thoughts - nice style of visualizing notes one by one. arrows to navigate and ESQ/q to exit. Enter to choose note for editing.
-* drop - for deleting chosen thought.
+* thoughts - nice style of visualizing notes one by one. Arrows to navigate and ESQ/q to exit. Enter to choose note for editing.
+* drop - for deleting chosen note.
 * new - to start new note from scratch
 * position - currently under development. Needed to get cursor position.
 * browse - to see thoughts sorted by date. Up and down to navigate.
