@@ -23,7 +23,7 @@ When you started thoughts process :) you see an empty page (as on 2021 February 
 You can enter any of these commands:
 
 * clear - clears your screen from commands
-* title - next input would be considered title for new note
+* title - next input would be considered title for new note. And shows current title if exists.
 * content - same as title but for content
 * tags - for adding options tag information
 * now - adds date to current note
@@ -36,6 +36,6 @@ You can enter any of these commands:
 * drop - for deleting chosen note.
 * new - to start new note from scratch
 * position - currently under development. Needed to get cursor position.
-* browse - to see thoughts sorted by date. Up and down to navigate.
+* browse - to see thoughts sorted by date. Up and down to navigate. Enter to choose note for editing.
 
 Hit ESC or Ctrl-C to exit.

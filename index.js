@@ -8,6 +8,8 @@ const {
 	hideCursor,
 	showCursor,
 	deletePreviousLine,
+	cursorUp,
+	cursorDown,
 	style
 } = require("./lib/vt100-sequences");
 const {
@@ -16,7 +18,8 @@ const {
 } = require("./lib/render-data");
 const {prepareLines, prepareThoughts, buildBrowseIndex} = require("./lib/data-helpers");
 const {render, renderData, renderDataWithTags} = require("./lib/render-helpers");
-
+const isWindows = process.platform === "win32";
+const isMacOs = process.platform === "darwin";
 
 setAlternativeBuffer(process.stdout);
 showCursor(process.stdout);
@@ -35,7 +38,6 @@ const rl = readline.createInterface({
 	output: mutableOutput,
 	prompt: ""
 });
-
 
 let commands = [];
 let records = [];
@@ -61,6 +63,9 @@ const lineListener = (line) => {
 
 	if (mode === "command") {
 		let result = "";
+		let toPrint = "";
+		let asUser = false;
+
 		if (normalized === 'clear') {
 			commands = [];
 			render(terminalSize, commands, mutableOutput);
@@ -71,17 +76,20 @@ const lineListener = (line) => {
 		}
 		else if (normalized === 'title') {
 			mode = "title";
-			rl.write(state.title || "")
+			toPrint = state.title || "";
+			asUser = true;
 			result = "mode = title"
 		}
 		else if (normalized === 'content') {
 			mode = "content";
-			rl.write(state.content || "")
+			toPrint = state.content || "";
+			asUser = true;
 			result = "mode = content";
 		}
 		else if (normalized === 'tags') {
 			mode = "tags";
-			rl.write(state.tags || "")
+			toPrint = state.tags || "";
+			asUser = true;
 			result = "mode = tags";
 		}
 		else if (normalized === "now") {
@@ -89,7 +97,7 @@ const lineListener = (line) => {
 			result = "date set";
 		}
 		else if (normalized === 'state') {
-			mutableOutput.write(JSON.stringify(state, null, 4)+"\n");
+			toPrint = JSON.stringify(state, null, 4)+"\n";
 		}
 		else if (normalized === "push") {
 			if (state.title === undefined) {
@@ -186,6 +194,7 @@ const lineListener = (line) => {
 
 				hideCursor(mutableOutput);
 				renderDataWithTags(terminalSize, browseRenderData, mutableOutput);
+				inputStartDate = new Date();
 				result = "Browsing over. mode = command"
 			}
 		}
@@ -198,11 +207,33 @@ const lineListener = (line) => {
 			commands.push(line)
 		}
 		else {
-			deletePreviousLine(mutableOutput);
+			deletePreviousLine(1, mutableOutput);
 			mutableOutput.write(line);
 			let resultText = " # "+result;
 			style(mutableOutput).grey().write(resultText+"\n");
 			commands.push([line, {color: "grey", text: resultText}]);
+		}
+
+		//this is needed to print command results like # Success
+		//and sometimes like state right in buffer
+		if (toPrint !== "") {
+			if (asUser) {
+				rl.write(toPrint);//whitespace+backpace triggers redrawing of input
+				
+				if (isMacOs) {
+					rl.write(" ");//whitespace+backpace triggers redrawing of input
+					rl.write(null, { name: 'backspace' });
+					let counter = Math.floor(toPrint.length / terminalSize.width);
+					if (counter > 0) {
+						cursorUp(counter, mutableOutput);
+						deletePreviousLine(counter, mutableOutput);
+						cursorDown(counter, mutableOutput);
+					}
+				}
+			}
+			else {
+				mutableOutput.write(toPrint)
+			}
 		}
 	}
 	else if (mode === "title") {
@@ -409,6 +440,12 @@ const keyPressListener = (s, key) => {
 			else {
 				beep(process.stdout)
 			}
+		}
+		else if (key.name === "return" && (new Date() - inputStartDate) > 100) {
+			noteIndex = browseRenderData.index;
+			state = records[noteIndex];
+
+			backToCommands()
 		}
 	}
 };
