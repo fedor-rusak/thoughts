@@ -3,7 +3,7 @@
 
 Ever wanted to save your thoughts in some json file using CLI interface?
 
-This is a small node app that tries to be vim-bash-like thing for simple notes.
+This is a small node app that tries to be vim-bash-like thing for simple notes. Yet interconnected thoughts!
 
 Should work properly on Mac and Windows.
 
@@ -36,6 +36,6 @@ You can enter any of these commands:
 * drop - for deleting chosen note.
 * new - to start new note from scratch
 * position - currently under development. Needed to get cursor position.
-* browse - to see thoughts sorted by date. Up and down to navigate. Enter to choose note for editing.
+* browse - to see thoughts sorted by tag (date by default). Up and down to navigate across tag index. Left and right to choose tag for index. Enter to choose note for editing.
 
 Hit ESC or Ctrl-C to exit.

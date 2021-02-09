@@ -17,7 +17,7 @@ const {
 	getBrowseRenderData
 } = require("./lib/render-data");
 const {prepareLines, prepareThoughts, buildBrowseIndex} = require("./lib/data-helpers");
-const {render, renderData, renderDataWithTags} = require("./lib/render-helpers");
+const {render, renderData, renderDataWithNavigateTags} = require("./lib/render-helpers");
 const isWindows = process.platform === "win32";
 const isMacOs = process.platform === "darwin";
 
@@ -183,9 +183,11 @@ const lineListener = (line) => {
 			else {
 				mode = "browse";
 				browseRenderData.cachedThoughtsLines =
-					prepareThoughts(records, terminalSize.width);
-				browseRenderData.internalIndex = buildBrowseIndex(records);
-				browseRenderData.tagForOrdering = "date";
+					prepareThoughts(records, terminalSize.width, "noTags");
+				let browseIndex = buildBrowseIndex(records);
+				browseRenderData.internalIndex = browseIndex.index;
+				browseRenderData.cachedTags = browseIndex.cachedTags;
+				browseRenderData.navigateTag = "date";
 				let firstThoughtOrderByDateASC = browseRenderData.internalIndex["date"][0];
 				browseRenderData.index = firstThoughtOrderByDateASC;
 				browseRenderData.indexPosition = 0;
@@ -193,7 +195,7 @@ const lineListener = (line) => {
 					browseRenderData.cachedThoughtsLines[firstThoughtOrderByDateASC];
 
 				hideCursor(mutableOutput);
-				renderDataWithTags(terminalSize, browseRenderData, mutableOutput);
+				renderDataWithNavigateTags(terminalSize, browseRenderData, mutableOutput);
 				inputStartDate = new Date();
 				result = "Browsing over. mode = command"
 			}
@@ -413,12 +415,38 @@ const keyPressListener = (s, key) => {
 			if ((browseRenderData.indexPosition - 1) >= 0) {
 				browseRenderData.indexPosition -= 1;
 				let tagSortIndex = 
-					browseRenderData.internalIndex[browseRenderData.tagForOrdering];
+					browseRenderData.internalIndex[browseRenderData.navigateTag];
 				browseRenderData.index = tagSortIndex[browseRenderData.indexPosition];
 				browseRenderData.lines = 
 					browseRenderData.cachedThoughtsLines[browseRenderData.index];
 
-				renderDataWithTags(terminalSize, browseRenderData, mutableOutput);
+				renderDataWithNavigateTags(terminalSize, browseRenderData, mutableOutput);
+			}
+			else {
+				beep(process.stdout)
+			}
+		}
+		else if (key.name === "left") {
+			let tags = browseRenderData.cachedTags[browseRenderData.index];
+			let navigateTag = browseRenderData.navigateTag;
+			let navigateTagIndex = tags.indexOf(navigateTag);
+			if (navigateTagIndex > 0) {
+				let newNavigateTag = browseRenderData.navigateTag;
+				browseRenderData.navigateTag = tags[navigateTagIndex-1];
+				renderDataWithNavigateTags(terminalSize, browseRenderData, mutableOutput);
+			}
+			else {
+				beep(process.stdout)
+			}
+		}
+		else if (key.name === "right") {
+			let tags = browseRenderData.cachedTags[browseRenderData.index];
+			let navigateTag = browseRenderData.navigateTag;
+			let navigateTagIndex = tags.indexOf(navigateTag);
+			if ((navigateTagIndex+1) < tags.length) {
+				let newNavigateTag = browseRenderData.navigateTag;
+				browseRenderData.navigateTag = tags[navigateTagIndex+1];
+				renderDataWithNavigateTags(terminalSize, browseRenderData, mutableOutput);
 			}
 			else {
 				beep(process.stdout)
@@ -427,7 +455,7 @@ const keyPressListener = (s, key) => {
 		else if (key.name === "up") {
 			let newIndexPosition = browseRenderData.indexPosition + 1;
 			let tagSortIndex = 
-					browseRenderData.internalIndex[browseRenderData.tagForOrdering];
+					browseRenderData.internalIndex[browseRenderData.navigateTag];
 
 			if (newIndexPosition < tagSortIndex.length) {
 				browseRenderData.indexPosition = newIndexPosition;
@@ -435,7 +463,7 @@ const keyPressListener = (s, key) => {
 				browseRenderData.lines = 
 					browseRenderData.cachedThoughtsLines[browseRenderData.index];
 
-				renderDataWithTags(terminalSize, browseRenderData, mutableOutput);
+				renderDataWithNavigateTags(terminalSize, browseRenderData, mutableOutput);
 			}
 			else {
 				beep(process.stdout)
@@ -477,9 +505,9 @@ const resizeListener = () => {
 	}
 	else if (mode === "browse") {
 		browseRenderData.cachedThoughtsLines =
-			prepareThoughts(records, terminalSize.width);
+			prepareThoughts(records, terminalSize.width, "noTags");
 		let tagSortIndex = 
-			browseRenderData.internalIndex[browseRenderData.tagForOrdering];
+			browseRenderData.internalIndex[browseRenderData.navigateTag];
 		browseRenderData.lines =
 			browseRenderData.cachedThoughtsLines[tagSortIndex[browseRenderData.indexPosition]];
 
