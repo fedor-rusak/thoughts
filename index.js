@@ -33,6 +33,9 @@ const terminalSize = {
 const mutableOutput = new muteStream();
 mutableOutput.pipe(process.stdout);
 
+style(mutableOutput).grey().write("# When in doubt use ");
+style(mutableOutput).bold().cyan().write("help\n");
+
 const rl = readline.createInterface({
 	input: process.stdin,
 	output: mutableOutput,
@@ -198,6 +201,31 @@ const lineListener = (line) => {
 				renderDataWithNavigateTags(terminalSize, browseRenderData, mutableOutput);
 				inputStartDate = new Date();
 				result = "Browsing over. mode = command"
+			}
+		}
+		else if (normalized === "help") {
+			result = "Welcome and have a nice day!\n"+
+					"# Multiple commands are supported by thoughts:\n"+
+					"#    example - load test records\n"+
+					"#    browse  - use arrows to navigate. Esq or q to exit.\n"+
+					"#    records - see data in JSON format\n"+
+					"#    new     - start new note\n"+
+					"#    title   - write title\n"+
+					"#    content - write content\n"+
+					"#    tags    - write tags\n"+
+					"#    now     - set current date\n"+
+					"#    push    - add current note to records\n"+
+					"#    save    - save records in default file\n"+
+					"#    load    - load records from default file\n"+
+					"#    clear   - get empty screen";
+		}
+		else if (normalized === "example") {
+					try {
+				records = JSON.parse(fs.readFileSync("./lib/example.json"));
+				result = "Successfully load test records"
+			}
+			catch (e) {
+				result = "Failed to load test records";
 			}
 		}
 		else {
@@ -519,3 +547,5 @@ const resizeListener = () => {
 };
 
 process.stdout.on('resize', resizeListener);
+
+// setTimeout(()=>{rl.write("title");rl.write(null, { name: 'enter' });},100);

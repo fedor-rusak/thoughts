@@ -37,5 +37,7 @@ You can enter any of these commands:
 * new - to start new note from scratch
 * position - currently under development. Needed to get cursor position.
 * browse - to see thoughts sorted by tag (date by default). Up and down to navigate across tag index. Left and right to choose tag for index. Enter to choose note for editing.
+* help - to see list of supported commands
+* example - to load test records to play around with
 
 Hit ESC or Ctrl-C to exit.

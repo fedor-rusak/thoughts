@@ -1,0 +1,74 @@
+[
+    {
+        "title": "Why this project exists?",
+        "content": "Just for fun to be honest. Is not it fun to write small notes via terminal? Like you are real hacker but without vi or emacs! I enjoy working in terminal to some degree, it usually feels super productive to write short commands and get cool results. Like piping and shell scripting. And I wanted to capture that feel of productiveness in a tool for short notes. That is how I remember it at least.",
+        "date": "2021-02-08T05:55:39.385Z",
+        "tags": "why, initial idea, terminal, productiveness, brainstorming, UX"
+    },
+    {
+        "title": "Why notes?",
+        "content": "Writing down my own thoughts helps to get them out of my head. And if they are worth it I will add details later. It takes small time but gives me sort of internal peace. And who knows maybe I will check them later and will stumble upon some other cool thoughts.",
+        "tags": "why, notes, productiveness, search, ideas",
+        "date": "2021-02-08T06:09:26.339Z"
+    },
+    {
+        "title": "Why bother?",
+        "content": "When there are already tons of books, articles, tools, opinions. Why would you care about your small notes? Because no one is going to give real attention to ideas that only you care about. Great things in life require serious effort. Value your ideas and search for what you really care by working through your ideas with writing, editing, reading and thinking again.",
+        "date": "2021-02-08T07:49:24.675Z",
+        "tags": "why, ideas, notes"
+    },
+    {
+        "content": "Working with ideas that you came up with is super frustrating (as they usually suck) but also super rewarding. Because it was your decision, your creative or who knows why choice. This can be great source for inspiration and learning motivation which is super important for anyone who likes do stuff.",
+        "tags": "why, ideas, motivation",
+        "title": "Why your ideas matter?",
+        "date": "2021-02-08T09:32:42.208Z"
+    },
+    {
+        "title": "Why motivation matters?",
+        "content": "Because in fields like programming where most interesting things happen inside transistors or inside peoples minds it is really difficult to collect stuff that inspires you. And without inspiration and joy even the most interesting would feel like a boring job. Learning new stuff would be near impossible without some curiosity for learning.",
+        "tags": "why, motivation, learning",
+        "date": "2021-02-08T09:39:13.860Z"
+    },
+    {
+        "title": "Why learning?",
+        "content": "Because it is part of software developer job to learn new things. It is part of citizen life to understand how your country works. It is part of being adult to learn how to earn money and be responsible for your actions. Learning is life. And if we can't get away from it then why not try to make it feel better.",
+        "tags": "why, learning",
+        "date": "2021-02-08T09:40:56.228Z"
+    },
+    {
+        "title": "CLI/terminal is weird",
+        "content": "Before developing this app I knew that there are some strange things there, like non-printablce characters, different end-line symbols and such. But when I dug a bit deeper it is event weirder! So some time ago there were actual hardware terminals like vt100, which acted like stateful graphics client to bigger computers. And current software terminals copy some of real terminal bahevior. Hence vt100 sequences in this project.",
+        "tags": "terminal, weird, readline",
+        "date": "2021-02-10T07:36:32.532Z"
+    },
+    {
+        "title": "NodeJS & readline",
+        "content": "This app is written in node which has bindings to a library called readline. It is such a weird thing it allows simulate key events if they were done by user! It sounds pretty obvious but it makes no sense as it reads stdin and you practically can't write in stdin! But still it is a great way to provide editable string when you want to modify existing title, content or tags.",
+        "tags": "terminal, readline",
+        "date": "2021-02-10T07:38:55.252Z"
+    },
+    {
+        "title": "Non-linear connections between notes",
+        "content": "It is awkward to describe in words but one of ideas I got during development is that actual thoughts in our head are not like paragraphs on a page. They don't go in ordered manner. So current browse implementation that I plan to improve with tag-weights (no good name now) is one way to build connections between notes and later navigate using them. Sort of like controlled chaos of thinking.",
+        "tags": "brainstorming",
+        "date": "2021-02-10T07:44:45.876Z"
+    },
+    {
+        "tags": "brainstorming, UX, features",
+        "title": "Maybe there should be a history of changes for each note",
+        "content": "But I still don't feel that this is necessary. On one hand if I want to keep short notes why would not I keep story of how I improved them? Because I think oe thought by itself is not that important as its relations to other thoughts. And visualizing changes of edges in some complex graph is not something that I wish to implement right now. So lack of history UX ideas is blocking this feature.",
+        "date": "2021-02-10T07:48:26.806Z"
+    },
+    {
+        "title": "What user experience I wish to have",
+        "content": "As I am doing this app for myself I have really specific epectations from small little app. I don't want it to be super generic nuclear chainsaw emacs, nor I want alient super smart vi(m) clone. I wish to have a really specialized tool that helps me focus on writing thoughts and playing with their connections. I want to think more about writing and less about being developer while using it.",
+        "tags": "brainstorming, UX",
+        "date": "2021-02-10T07:52:15.202Z"
+    },
+    {
+        "title": "Probably this app needs some HELP",
+        "content": "I mean it is really difficult to describe what it does even visually. It is sort of like a simple text game where you build up your playground yourself. But it is hard to do it in complete emptiness. So I want to add all these records as part of some help command. So that anyone who tries to run help command can get some toy example to browse, edit and fool around with.",
+        "tags": "features, help, UX",
+        "date": "2021-02-10T08:00:13.921Z"
+    }
+]
