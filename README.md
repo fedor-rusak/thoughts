@@ -13,12 +13,17 @@ You need NodeJS to run this project.
 
 ```
 npm install
-node index.js
+node index.js <optional existing data file name>
 ```
 
 # How to use
 
-When you started thoughts process :) you see an empty page (as on 2021 February 7).
+When you started (as of 2021 February 11) thoughts process :) you see:
+
+```
+# Data file: ./data.json
+# when in doubt use help
+```
 
 You can enter any of these commands:
 
@@ -33,7 +38,7 @@ You can enter any of these commands:
 * save - save records to file
 * load - load records from file
 * thoughts - nice style of visualizing notes one by one. Arrows to navigate and ESQ/q to exit. Enter to choose note for editing.
-* drop - for deleting chosen note.
+* drop - for deleting chosen note
 * new - to start new note from scratch
 * position - currently under development. Needed to get cursor position.
 * browse - to see thoughts sorted by tag (date by default). Up and down to navigate across tag index. Left and right to choose tag for index. Enter to choose note for editing.

@@ -21,6 +21,16 @@ const {render, renderData, renderDataWithNavigateTags} = require("./lib/render-h
 const isWindows = process.platform === "win32";
 const isMacOs = process.platform === "darwin";
 
+let dataFilePath = process.argv.slice(2)[0] || './data.json';
+try {
+	if (fs.lstatSync(dataFilePath).isFile() === false) {
+		dataFilePath = './data.json';
+	}
+}
+catch (e) {
+	dataFilePath = './data.json';
+}
+
 setAlternativeBuffer(process.stdout);
 showCursor(process.stdout);
 
@@ -33,16 +43,32 @@ const terminalSize = {
 const mutableOutput = new muteStream();
 mutableOutput.pipe(process.stdout);
 
-style(mutableOutput).grey().write("# When in doubt use ");
-style(mutableOutput).bold().cyan().write("help\n");
-
 const rl = readline.createInterface({
 	input: process.stdin,
 	output: mutableOutput,
-	prompt: ""
+	prompt: "",
+	//history disabled because random input from browse, records
+	//viewing is automatically added and there is no way to control
+	//this behavior
+	historySize: 0
 });
 
 let commands = [];
+
+
+commands.push([
+	{color: "grey", text: "# Data file: "},
+	{color: "cyan", bold: true, text: dataFilePath}
+]);
+commands.push([
+	{color: "grey", text: "# When in doubt use "},
+	{color: "cyan", bold: true, text: "help"}
+]);
+
+
+render(terminalSize, commands, mutableOutput);
+
+
 let records = [];
 
 let recordsRenderData = {
@@ -59,7 +85,6 @@ let inputDelay = 300;
 let inputStartDate = 0;
 let noteIndex = -1; //for edit feature
 let state = {};
-let SAVE_FILE_PATH = './data.json';
 
 const lineListener = (line) => {
 	let normalized = line.trim().toLowerCase();
@@ -130,6 +155,7 @@ const lineListener = (line) => {
 			recordsRenderData.lines = prepareLines(records, terminalSize.width);
 			let renderFrom = recordsRenderData.lines.length - terminalSize.height;
 			recordsRenderData.viewStartLine = renderFrom >= 0 ? renderFrom : 0;
+
 			hideCursor(mutableOutput);
 			renderData(terminalSize, recordsRenderData, mutableOutput);
 			result = "Records over. mode = command"
@@ -144,6 +170,7 @@ const lineListener = (line) => {
 					prepareThoughts(records, terminalSize.width);
 				thoughtsRenderData.viewStartLine = 0;
 				thoughtsRenderData.setIndex(0);
+
 				hideCursor(mutableOutput);
 				renderData(terminalSize, thoughtsRenderData, mutableOutput);
 				inputStartDate = new Date();
@@ -151,12 +178,12 @@ const lineListener = (line) => {
 			}
 		}
 		else if (normalized === "save") {
-			fs.writeFileSync(SAVE_FILE_PATH, JSON.stringify(records, null, 4));
+			fs.writeFileSync(dataFilePath, JSON.stringify(records, null, 4));
 			result = "Success"
 		}
 		else if (normalized === "load") {
 			try {
-				records = JSON.parse(fs.readFileSync(SAVE_FILE_PATH));
+				records = JSON.parse(fs.readFileSync(dataFilePath));
 				result = "Success"
 			}
 			catch (e) {
@@ -185,17 +212,9 @@ const lineListener = (line) => {
 			}
 			else {
 				mode = "browse";
-				browseRenderData.cachedThoughtsLines =
-					prepareThoughts(records, terminalSize.width, "noTags");
-				let browseIndex = buildBrowseIndex(records);
-				browseRenderData.internalIndex = browseIndex.index;
-				browseRenderData.cachedTags = browseIndex.cachedTags;
+				browseRenderData.prepareThoughtsAndIndex(records, terminalSize.width);
 				browseRenderData.navigateTag = "date";
-				let firstThoughtOrderByDateASC = browseRenderData.internalIndex["date"][0];
-				browseRenderData.index = firstThoughtOrderByDateASC;
-				browseRenderData.indexPosition = 0;
-				browseRenderData.lines =
-					browseRenderData.cachedThoughtsLines[firstThoughtOrderByDateASC];
+				browseRenderData.setTaggedNoteIndex(0);
 
 				hideCursor(mutableOutput);
 				renderDataWithNavigateTags(terminalSize, browseRenderData, mutableOutput);
@@ -205,22 +224,22 @@ const lineListener = (line) => {
 		}
 		else if (normalized === "help") {
 			result = "Welcome and have a nice day!\n"+
-					"# Multiple commands are supported by thoughts:\n"+
-					"#    example - load test records\n"+
-					"#    browse  - use arrows to navigate. Esq or q to exit.\n"+
-					"#    records - see data in JSON format\n"+
-					"#    new     - start new note\n"+
-					"#    title   - write title\n"+
-					"#    content - write content\n"+
-					"#    tags    - write tags\n"+
-					"#    now     - set current date\n"+
-					"#    push    - add current note to records\n"+
-					"#    save    - save records in default file\n"+
-					"#    load    - load records from default file\n"+
-					"#    clear   - get empty screen";
+				"# Multiple commands are supported by thoughts:\n"+
+				"#    example - load test records\n"+
+				"#    browse  - use arrows to navigate. Esq or q to exit.\n"+
+				"#    records - see data in JSON format\n"+
+				"#    new     - start new note\n"+
+				"#    title   - write title\n"+
+				"#    content - write content\n"+
+				"#    tags    - write tags\n"+
+				"#    now     - set current date\n"+
+				"#    push    - add current note to records\n"+
+				"#    save    - save records in default file\n"+
+				"#    load    - load records from default file\n"+
+				"#    clear   - get empty screen";
 		}
 		else if (normalized === "example") {
-					try {
+			try {
 				records = JSON.parse(fs.readFileSync("./lib/example.json"));
 				result = "Successfully load test records"
 			}
@@ -440,13 +459,18 @@ const keyPressListener = (s, key) => {
 			backToCommands();
 		}
 		else if (key.name === "down") {
-			if ((browseRenderData.indexPosition - 1) >= 0) {
-				browseRenderData.indexPosition -= 1;
-				let tagSortIndex = 
-					browseRenderData.internalIndex[browseRenderData.navigateTag];
-				browseRenderData.index = tagSortIndex[browseRenderData.indexPosition];
-				browseRenderData.lines = 
-					browseRenderData.cachedThoughtsLines[browseRenderData.index];
+			if (browseRenderData.hasPreviousTaggedNote()) {
+				browseRenderData.setTaggedNoteIndex(browseRenderData.indexPosition-1);
+
+				renderDataWithNavigateTags(terminalSize, browseRenderData, mutableOutput);
+			}
+			else {
+				beep(process.stdout)
+			}
+		}
+		else if (key.name === "up") {
+			if (browseRenderData.hasNextTaggedNote()) {
+				browseRenderData.setTaggedNoteIndex(browseRenderData.indexPosition+1);
 
 				renderDataWithNavigateTags(terminalSize, browseRenderData, mutableOutput);
 			}
@@ -455,12 +479,8 @@ const keyPressListener = (s, key) => {
 			}
 		}
 		else if (key.name === "left") {
-			let tags = browseRenderData.cachedTags[browseRenderData.index];
-			let navigateTag = browseRenderData.navigateTag;
-			let navigateTagIndex = tags.indexOf(navigateTag);
-			if (navigateTagIndex > 0) {
-				let newNavigateTag = browseRenderData.navigateTag;
-				browseRenderData.navigateTag = tags[navigateTagIndex-1];
+			if (browseRenderData.hasPreviousTag()) {
+				browseRenderData.setNavigateTagIndex(browseRenderData.navigateTagIndex-1);
 				renderDataWithNavigateTags(terminalSize, browseRenderData, mutableOutput);
 			}
 			else {
@@ -468,28 +488,8 @@ const keyPressListener = (s, key) => {
 			}
 		}
 		else if (key.name === "right") {
-			let tags = browseRenderData.cachedTags[browseRenderData.index];
-			let navigateTag = browseRenderData.navigateTag;
-			let navigateTagIndex = tags.indexOf(navigateTag);
-			if ((navigateTagIndex+1) < tags.length) {
-				let newNavigateTag = browseRenderData.navigateTag;
-				browseRenderData.navigateTag = tags[navigateTagIndex+1];
-				renderDataWithNavigateTags(terminalSize, browseRenderData, mutableOutput);
-			}
-			else {
-				beep(process.stdout)
-			}
-		}
-		else if (key.name === "up") {
-			let newIndexPosition = browseRenderData.indexPosition + 1;
-			let tagSortIndex = 
-					browseRenderData.internalIndex[browseRenderData.navigateTag];
-
-			if (newIndexPosition < tagSortIndex.length) {
-				browseRenderData.indexPosition = newIndexPosition;
-				browseRenderData.index = tagSortIndex[newIndexPosition];
-				browseRenderData.lines = 
-					browseRenderData.cachedThoughtsLines[browseRenderData.index];
+			if (browseRenderData.hasNextTag()) {
+				browseRenderData.setNavigateTagIndex(browseRenderData.navigateTagIndex+1);
 
 				renderDataWithNavigateTags(terminalSize, browseRenderData, mutableOutput);
 			}
@@ -511,7 +511,7 @@ process.stdin.on('keypress', keyPressListener);
 
 //there is a hidden puzzle here
 //When you resize window... 
-//How to keep *same* part of records line on the top of the screen?
+//How to keep *same* line on the top of the screen?
 const resizeListener = () => {
 	terminalSize.width = process.stdout.columns;
 	terminalSize.height = process.stdout.rows;
@@ -534,12 +534,9 @@ const resizeListener = () => {
 	else if (mode === "browse") {
 		browseRenderData.cachedThoughtsLines =
 			prepareThoughts(records, terminalSize.width, "noTags");
-		let tagSortIndex = 
-			browseRenderData.internalIndex[browseRenderData.navigateTag];
-		browseRenderData.lines =
-			browseRenderData.cachedThoughtsLines[tagSortIndex[browseRenderData.indexPosition]];
+		browseRenderData.setTaggedNoteIndex(browseRenderData.indexPosition);
 
-		renderDataWithTags(terminalSize, browseRenderData, mutableOutput);
+		renderDataWithNavigateTags(terminalSize, browseRenderData, mutableOutput);
 	}
 	else {
 		render(terminalSize, commands, mutableOutput);
