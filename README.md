@@ -18,7 +18,7 @@ node index.js <optional existing data file name>
 
 # How to use
 
-When you started (as of 2021 February 11) thoughts process :) you see:
+When you started (as of 2021 February 12) thoughts process :) you see:
 
 ```
 # Data file: ./data.json
@@ -37,12 +37,12 @@ You can enter any of these commands:
 * records - allows to look at current notes in technical format. Use arrows to navigate. ESC or q to exit.
 * save - save records to file
 * load - load records from file
-* thoughts - nice style of visualizing notes one by one. Arrows to navigate and ESQ/q to exit. Enter to choose note for editing.
+* thoughts - nice style of visualizing notes one by one. Up/down arrows to navigate and ESQ/q to exit. Enter to choose note for editing.
 * drop - for deleting chosen note
 * new - to start new note from scratch
 * position - currently under development. Needed to get cursor position.
 * browse - to see thoughts sorted by tag (date by default). Up and down to navigate across tag index. Left and right to choose tag for index. Enter to choose note for editing.
 * help - to see list of supported commands
-* example - to load test records to play around with
+* development-thoughts - thoughts I got while developing this app
 
 Hit ESC or Ctrl-C to exit.
