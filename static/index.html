@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+	<head>
+		<link rel="stylesheet" href="resources/xterm.css" />
+		<script src="resources/xterm.js"></script>
+		<script type="module">
+			"use strict";
+			import {createAppState} from "./lib/data-helpers.js";
+			import {render} from "./lib/render-helpers.js";
+			import {getLineListener, getKeyListener} from "./lib/app-callbacks.js";
+			import getBrowserBackend from "./resources/browser-backend.js";
+			import {setAlternativeBuffer} from "./lib/vt100-sequences.js";
+
+
+			window.onload = () => {
+				let appState = createAppState({
+					dataFilePath: "not_supported",
+					initialCommands: [
+						[
+							{color: "grey", text: "# Data file: "},
+							{color: "cyan", bold: true, text: "not_supported"}
+						],
+						[
+							{color: "grey", text: "# When in doubt use "},
+							{color: "cyan", bold: true, text: "help"}
+						]
+					]
+				});
+
+				let browserBackend = getBrowserBackend(appState);
+				appState.terminalSize = browserBackend.getTerminalSize();
+
+				//setup and first render
+				setAlternativeBuffer(browserBackend.stdout);
+				render(appState.terminalSize, appState.commands, browserBackend.mutableOutput);
+
+				const lineListener = getLineListener(browserBackend, appState);
+				const keyListener = getKeyListener(browserBackend, appState);
+
+				browserBackend.onLine(lineListener);
+				browserBackend.onKey(keyListener);
+			}
+		</script>
+	</head>
+	<body>
+		<div id="terminal"></div>
+	</body>
+</html>

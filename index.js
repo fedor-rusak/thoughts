@@ -4,9 +4,7 @@ import {
 	setMainBuffer,
 	showCursor
 } from "./lib/vt100-sequences.js";
-import {
-	createAppState
-} from "./lib/data-helpers.js";
+import {createAppState} from "./lib/data-helpers.js";
 import {
 	getLineListener,
 	getKeyListener,

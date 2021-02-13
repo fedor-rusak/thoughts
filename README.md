@@ -46,6 +46,17 @@ You can enter any of these commands:
 
 Hit ESC or Ctrl-C to exit.
 
+# Browser version (Work In Progress)
+
+Same commands and expected user experience but:
+
+```
+npm install
+node server.js
+```
+
+And open [localhost:3000](http://localhost:3000) page.
+
 # Thanks
 
 Big thanks to Isaac Z. Schlueter for his package [mute-stream](https://github.com/isaacs/mute-stream#readme). It was really useful in terminal version of this app.

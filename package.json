@@ -1,6 +1,6 @@
 {
   "name": "thoughts",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Playing with idea of writing down random ideas.",
   "type": "module",
   "main": "index.js",
@@ -8,5 +8,8 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Fedor Rusak",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
 }
