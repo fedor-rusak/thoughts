@@ -1,19 +1,19 @@
 "use strict";
-const {
+import {
 	setAlternativeBuffer,
 	setMainBuffer,
 	showCursor
-} = require("./lib/vt100-sequences");
-const {
+} from "./lib/vt100-sequences.js";
+import {
 	createAppState
-} = require("./lib/data-helpers");
-const {
+} from "./lib/data-helpers.js";
+import {
 	getLineListener,
 	getKeyListener,
 	getResizeListener
-} =  require("./lib/app-callbacks");
-const {render} = require("./lib/render-helpers");
-const getRealTerminalBackend = require("./lib/real-terminal-backend");
+} from "./lib/app-callbacks.js";
+import {render} from "./lib/render-helpers.js";
+import getRealTerminalBackend from "./lib/real-terminal-backend.js";
 
 const currentBackend = getRealTerminalBackend();
 

@@ -9,10 +9,9 @@ Should work properly on Mac and Windows.
 
 # How to start
 
-You need NodeJS to run this project.
+It uses ES6 modules so you need modern NodeJS (>=14) to run this project.
 
 ```
-npm install
 node index.js <optional existing data file name>
 ```
 
@@ -46,3 +45,7 @@ You can enter any of these commands:
 * development-thoughts - thoughts I got while developing this app
 
 Hit ESC or Ctrl-C to exit.
+
+# Thanks
+
+Big thanks to Isaac Z. Schlueter for his package [mute-stream](https://github.com/isaacs/mute-stream#readme). It was really useful in terminal version of this app.
