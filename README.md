@@ -57,6 +57,8 @@ node server.js
 
 And open [localhost:3000](http://localhost:3000) page.
 
+Be aware that no support for file system introduced yet. Only editing/browsing before the tab is closed.
+
 # Thanks
 
 Big thanks to Isaac Z. Schlueter for his package [mute-stream](https://github.com/isaacs/mute-stream#readme). It was really useful in terminal version of this app.
