@@ -1,4 +1,5 @@
 "use strict";
+
 const getMutableStream = (writeable) => {
 	let muted = false;
 
@@ -108,9 +109,8 @@ const redrawInputPart = (backend, bufferState) => {
 	//this one really specific edge case for multiline user input that is
 	//near bottom and causes automatic scroll up
 	let linesInInput = Math.ceil(data.length/width);
-	console.log(startCursorY + " " + linesInInput + " " + height)
+
 	if ((startCursorY + linesInInput) > height) {
-		console.log((startCursorY + linesInInput))
 		backend.mutableOutput.write("\u001b[1A");
 	}
 }
@@ -135,7 +135,6 @@ const initialKeyCallback = (backend, bufferState, appState, event) => {
 		//right without modifiers
 		stopDomEventPropagation(domEvent);
 		if (bufferState.index < bufferState.data.length) {
-			console.log("before "+bufferState.index)
 			bufferState.index += 1;
 			moveRight(backend, bufferState);
 		}
@@ -159,7 +158,6 @@ const initialKeyCallback = (backend, bufferState, appState, event) => {
 		return
 	}
 	else if (key === "\u007f") {
-		console.log("backspace pressed!");
 		if (bufferState.index === bufferState.data.length 
 			&& bufferState.index > 0) {
 			let data = bufferState.data;
@@ -180,11 +178,9 @@ const initialKeyCallback = (backend, bufferState, appState, event) => {
 		return
 	}
 	else if (key === "\u001b") {
-		console.log("escape pressed!");
 		return
 	}
 	else if (key === "\r") {
-		console.log("enter pressed!");
 		backend.mutableOutput.write("\r");
 		//workaround for enter when cursor in the middle of multi-line
 		let cursorLine = Math.floor(bufferState.index/backend.stdout.cols);
@@ -203,7 +199,7 @@ const initialKeyCallback = (backend, bufferState, appState, event) => {
 			bufferState.data += key;
 			bufferState.index += 1;
 			backend.mutableOutput.write(key);
-			console.log(bufferState.index)
+
 			if ((bufferState.index % backend.stdout.cols === 0)
 				&& bufferState.index >= backend.stdout.cols) {
 				moveRight(backend, bufferState);
@@ -260,7 +256,6 @@ const specializedCallbackChainKeyListener =
 		bufferState.data = "";
 		bufferState.index = 0;
 		if (callbackChain.onLine) {
-			console.log("line! " + receivedLine);
 			callbackChain.onLine(receivedLine);
 		}
 	}
@@ -273,14 +268,19 @@ const specializedCallbackChainKeyListener =
 const getBrowserBackend = (appState) => {
 	let term = new Terminal({
 		theme: {
-			background: '#FFF',
+			background: '#EEE',
 			foreground: "#000",
 			cursor: "#777",
 			selection: "#888"
-		}
+		},
+		bellStyle: 'sound'
 	});
+	const fitAddon = new FitAddon.FitAddon()
+	term.loadAddon(fitAddon);
+	term.setOption("fontSize", 20);
 	term.open(document.getElementById('terminal'));
-	let mutableOutput = getMutableStream(term)
+	let mutableOutput = getMutableStream(term);
+	fitAddon.fit();
 
 	//work in progress
 	//problem is that in terminal world of nodeJS

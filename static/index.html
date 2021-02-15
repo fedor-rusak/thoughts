@@ -3,6 +3,7 @@
 	<head>
 		<link rel="stylesheet" href="resources/xterm.css" />
 		<script src="resources/xterm.js"></script>
+		<script src="resources/xterm-addon-fit.js"></script>
 		<script type="module">
 			"use strict";
 			import {createAppState} from "./lib/data-helpers.js";
@@ -13,6 +14,7 @@
 
 
 			window.onload = () => {
+
 				let appState = createAppState({
 					dataFilePath: "not_supported",
 					initialCommands: [
@@ -41,8 +43,16 @@
 				browserBackend.onKey(keyListener);
 			}
 		</script>
+		<style>
+			html, body {
+				height: 100%;
+				padding-left: 3px;
+				margin: 0;
+				background-color: #EEE;
+			}
+		</style>
 	</head>
 	<body>
-		<div id="terminal"></div>
+		<div id="terminal" style="width:100%;min-height: 100%;"></div>
 	</body>
 </html>

@@ -100,5 +100,11 @@
         "content": "The only thing that saves is from deleting is that it works. And after couple of commits I hope it will be similar to terminal version in capabilities. xtermJs is cool and everything but it requires some tweaking even for handling paste. And while I maintain internal readline-like buffer for input it is pain.",
         "tags": "development, web",
         "date": "2021-02-14T14:41:09.583Z"
+    },
+    {
+        "title": "Gists!",
+        "content": "I don't need all the problems with full blown git if I don't actually need any tricky history. Github has api for simple one-file data saving and this looks extraordinary useful in my particular case. And API would be easy to use as it is basic REST.",
+        "tags": "features, development",
+        "date": "2021-02-15T17:09:38.617Z"
     }
 ]
