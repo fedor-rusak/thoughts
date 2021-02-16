@@ -3,6 +3,8 @@
 
 Ever wanted to save your thoughts in some json file using CLI interface?
 
+[Demo on Github Pages](https://fedor-rusak.github.io/)
+
 This is a small node app that tries to be vim-bash-like thing for simple notes. Yet interconnected thoughts!
 
 Should work properly on Mac and Windows.
