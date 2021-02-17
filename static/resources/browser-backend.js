@@ -78,23 +78,29 @@ const moveRight = (backend, bufferState, writeAsUserBugWTF) => {
 	}
 }
 
+//this part is like the most mess in this whole file
+//it should handle situation where elements were removed, added,
+//and hardest of them all. Paste may happen!
+//Current approach is to redraw all lines + 1 before OLD index
+//and some tricks with row to catch when near screen bottom.
 const redrawInputPart = (backend, bufferState) => {
+	let oldIndex = bufferState.oldIndex;
 	let alternate = backend.stdout.buffer.alternate;
 	let height = backend.stdout.rows;
 	let width = backend.stdout.cols;
 	let startCursorY = alternate.cursorY;
 
-	let bugfixLine = 0;
-	if ((bufferState.index % width) === 0 && bufferState.data.length >= width) {
-		bugfixLine = 1;
-	}
+	let smallestIndex = 
+		bufferState.oldIndex > bufferState.index ?
+			bufferState.index : bufferState.oldIndex;
+
 	//we redraw only lines that were affected
-	let indexForSubstring = Math.floor(bufferState.index /width - bugfixLine)*width;
+	let indexForSubstring = Math.floor(smallestIndex /width)*width;
 	let data = bufferState.data.substring(indexForSubstring);
 	//first we clean possibly broken buffer lines
 	let count = Math.floor(data.length/width)+1;
 	backend.mutableOutput.write("\u001b["+count+"M")
-	//then we calculate cursor position after character insert
+	//then we calculate cursor position after insert
 	let cursorX = bufferState.index % width;
 	let cursorY = startCursorY+1;
 	//set cursor in the beginning of current line 
@@ -102,17 +108,9 @@ const redrawInputPart = (backend, bufferState) => {
 	//render line
 	backend.mutableOutput.write(data);
 	//restore cursor to where it should be after character insert
-	cursorY += cursorX === 0 ? 1 : 0;
+	cursorY += Math.floor(bufferState.index/width)-Math.floor(oldIndex/width);
 	//TO-DO why +1 here?
 	backend.mutableOutput.write("\u001b["+cursorY+";"+(cursorX+1)+"H");
-
-	//this one really specific edge case for multiline user input that is
-	//near bottom and causes automatic scroll up
-	let linesInInput = Math.ceil(data.length/width);
-
-	if ((startCursorY + linesInInput) > height) {
-		backend.mutableOutput.write("\u001b[1A");
-	}
 }
 
 const initialKeyCallback = (backend, bufferState, appState, event) => {
@@ -158,6 +156,7 @@ const initialKeyCallback = (backend, bufferState, appState, event) => {
 		return
 	}
 	else if (key === "\u007f") {
+		//backspace
 		if (bufferState.index === bufferState.data.length 
 			&& bufferState.index > 0) {
 			let data = bufferState.data;
@@ -172,6 +171,7 @@ const initialKeyCallback = (backend, bufferState, appState, event) => {
 			bufferState.data =
 				data.substring(0, index-1) +
 				data.substring(index);
+			bufferState.oldIndex = bufferState.index;
 			bufferState.index -= 1;
 			redrawInputPart(backend, bufferState);
 		}
@@ -211,13 +211,11 @@ const initialKeyCallback = (backend, bufferState, appState, event) => {
 				data.substring(0, bufferState.index) +
 				key +
 				data.substring(bufferState.index);
+			bufferState.oldIndex = bufferState.index;
 			bufferState.index += 1;
-			//add whitespace
-			backend.mutableOutput.write("\u001b[1@");
 			//redraw for input part needed with cursor position saving
 			redrawInputPart(backend, bufferState);
 		}
-		
 	}
 }
 
@@ -267,6 +265,7 @@ const specializedCallbackChainKeyListener =
 
 const getBrowserBackend = (appState) => {
 	let term = new Terminal({
+		rows: 10,
 		theme: {
 			background: '#EEE',
 			foreground: "#000",
@@ -281,6 +280,7 @@ const getBrowserBackend = (appState) => {
 	term.open(document.getElementById('terminal'));
 	let mutableOutput = getMutableStream(term);
 	fitAddon.fit();
+
 
 	//work in progress
 	//problem is that in terminal world of nodeJS
@@ -297,6 +297,33 @@ const getBrowserBackend = (appState) => {
 		data: "", //data
 		index: 0
 	}
+
+	term.attachCustomKeyEventHandler(
+		(event) => {
+			bufferState.isData = false;
+			if (event.keyCode === 86 && 
+				(event.metaKey === true || event.ctrlKey === true)){
+				bufferState.isData = true;
+				//TO-DO why?
+				return false;
+			}
+
+			return true;
+		}
+	)
+
+	term.onData((possiblyPaste) => {
+		if (bufferState.isData) {
+			let data = bufferState.data;
+			bufferState.data = 
+				data.substring(0, bufferState.index) +
+				possiblyPaste +
+				data.substring(bufferState.index);
+			bufferState.oldIndex = bufferState.index;
+			bufferState.index += possiblyPaste.length;
+			redrawInputPart({stdout: term, mutableOutput}, bufferState);
+		}
+	});
 
 	term.onKey(
 		specializedCallbackChainKeyListener.bind(

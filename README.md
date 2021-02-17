@@ -59,7 +59,7 @@ node server.js
 
 And open [localhost:3000](http://localhost:3000) page.
 
-Be aware that no support for file system introduced yet. Only editing/browsing before the tab is closed.
+Be aware that no support for file system introduced yet. Only editing/browsing before the tab is closed. Pasting works!
 
 # Thanks
 
