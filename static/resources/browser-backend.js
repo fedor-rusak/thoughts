@@ -333,7 +333,23 @@ const getBrowserBackend = (appState) => {
 		)
 	);
 
+	let dataLayer = {
+		readFileSync: (path) => {
+			throw new Error("Not supported!");
+		},
+		readFile: (path, callback) => {
+			setTimeout(()=>{callback("Not supported!");},0);
+		},
+		writeFile: (path, data, callback) => {
+			setTimeout(()=>{callback("Not supported!");},0);
+		},
+		isFile: (path) => {
+			throw new Error("Not supported!");
+		}
+	};
+
 	let result = {
+		dataLayer: dataLayer,
 		stdout: term,
 		mutableOutput: mutableOutput,
 		getTerminalSize: () => {

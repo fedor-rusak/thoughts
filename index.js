@@ -17,7 +17,7 @@ const currentBackend = getRealTerminalBackend();
 
 let dataFilePath = process.argv.slice(2)[0] || './data.json';
 try {
-	if (currentBackend.fs.lstatSync(dataFilePath).isFile() === false) {
+	if (currentBackend.dataLayer.isFile(dataFilePath) === false) {
 		dataFilePath = './data.json';
 	}
 }
