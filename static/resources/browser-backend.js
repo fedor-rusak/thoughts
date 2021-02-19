@@ -78,11 +78,10 @@ const moveRight = (backend, bufferState, writeAsUserBugWTF) => {
 	}
 }
 
-//this part is like the most mess in this whole file
-//it should handle situation where elements were removed, added,
-//and hardest of them all. Paste may happen!
-//Current approach is to redraw all lines + 1 before OLD index
-//and some tricks with row to catch when near screen bottom.
+//this code handles redraw for parts of data in case of paste,
+//backspace and insert in the middle of data.
+//it also keeps hacks for working around alternate buffer scrolling
+//when you type close to bottom
 const redrawInputPart = (backend, bufferState) => {
 	let oldIndex = bufferState.oldIndex;
 	let alternate = backend.stdout.buffer.alternate;
@@ -90,27 +89,70 @@ const redrawInputPart = (backend, bufferState) => {
 	let width = backend.stdout.cols;
 	let startCursorY = alternate.cursorY;
 
+	//another ugly hack to support backspace
+	// that leads cursor to previous line end
+	let backspaceFix = 0;
+	if (oldIndex > bufferState.index && ((oldIndex %width) === 0)) {
+		backspaceFix = 1;
+	}
+
+	//this is a way to handle backspace and insert and redraw only
+	//necessary parts
 	let smallestIndex = 
 		bufferState.oldIndex > bufferState.index ?
 			bufferState.index : bufferState.oldIndex;
 
 	//we redraw only lines that were affected
-	let indexForSubstring = Math.floor(smallestIndex /width)*width;
+	let indexForSubstring = Math.floor(smallestIndex / width)*width;
 	let data = bufferState.data.substring(indexForSubstring);
 	//first we clean possibly broken buffer lines
 	let count = Math.floor(data.length/width)+1;
 	backend.mutableOutput.write("\u001b["+count+"M")
 	//then we calculate cursor position after insert
-	let cursorX = bufferState.index % width;
+	// API gives like it it starts from 0
+	//while vt100 sequences assume it starts from 1
+	let cursorX = bufferState.index % width + 1;
 	let cursorY = startCursorY+1;
 	//set cursor in the beginning of current line 
-	backend.mutableOutput.write("\u001b["+cursorY+";"+0+"H");
+	backend.mutableOutput.write("\u001b["+(cursorY-backspaceFix)+";"+0+"H");
 	//render line
 	backend.mutableOutput.write(data);
-	//restore cursor to where it should be after character insert
+	//calculate final line
 	cursorY += Math.floor(bufferState.index/width)-Math.floor(oldIndex/width);
-	//TO-DO why +1 here?
-	backend.mutableOutput.write("\u001b["+cursorY+";"+(cursorX+1)+"H");
+	//set cursor to final position
+	backend.mutableOutput.write("\u001b["+cursorY+";"+cursorX+"H");
+	//hack for insert near buffer bottom
+	if (cursorY > height) {
+		console.log("maybe down!");
+		backend.mutableOutput.write("\u001b[1B");
+	}
+
+
+	//this is a fix for pasting at the end of input
+	//if it ends in a way that cursor should be in the beginning of
+	// a new line. This code handles autoscroll effect.
+	let newLinesAfterOldIndex = 
+		Math.floor((bufferState.data.length - oldIndex + (oldIndex % width))/width);
+	let scrolledLines = (startCursorY + 1 + newLinesAfterOldIndex) - height;
+	let indexJump = bufferState.index - oldIndex;
+
+	if ((bufferState.index === bufferState.data.length)
+		&& (indexJump > 0)
+		&& ((bufferState.index % width) === 0)
+		&& (scrolledLines > 0)) {
+			backend.mutableOutput.write("\u001b[1S");
+	}
+
+	//this a fix for inserting characters NOT in the end of input
+	//while being near buffer bottom. When autoscroll kicks in.
+	//this code fixes final cursor position.
+	let newLinesAfterCurrentIndex =
+		Math.ceil((bufferState.data.length - bufferState.index + (bufferState.index % width))/width)-1;
+	let cursorUps = newLinesAfterCurrentIndex;
+
+	if ((cursorUps > 0) && (indexJump > 0)) {
+		backend.mutableOutput.write("\u001b["+(cursorUps)+"A");
+	}
 }
 
 const initialKeyCallback = (backend, bufferState, appState, event) => {
@@ -183,6 +225,7 @@ const initialKeyCallback = (backend, bufferState, appState, event) => {
 	else if (key === "\r") {
 		backend.mutableOutput.write("\r");
 		//workaround for enter when cursor in the middle of multi-line
+		//TO-DO sometimes works poorly when multi-line near bottom
 		let cursorLine = Math.floor(bufferState.index/backend.stdout.cols);
 		let linesInInput = Math.floor(bufferState.data.length/backend.stdout.cols);
 		let count = linesInInput - cursorLine;
