@@ -45,6 +45,8 @@ You can enter any of these commands:
 * browse - to see thoughts sorted by tag (date by default). Up and down to navigate across tag index. Left and right to choose tag for index. Enter to choose note for editing.
 * help - to see list of supported commands
 * development-thoughts - thoughts I got while developing this app
+* use-fs, use-gist - to choose data save/load mechanism
+* gist-name, gist-token - to use github gist as storage
 
 Hit ESC or Ctrl-C to exit.
 

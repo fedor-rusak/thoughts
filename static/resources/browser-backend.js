@@ -118,7 +118,7 @@ const redrawInputPart = (backend, bufferState) => {
 	//render line
 	backend.mutableOutput.write(data);
 	//calculate final line
-	cursorY += Math.floor(bufferState.index/width)-Math.floor(oldIndex/width);
+	cursorY += Math.ceil(bufferState.data.length/width)-1-Math.floor(smallestIndex/width);
 	//set cursor to final position
 	backend.mutableOutput.write("\u001b["+cursorY+";"+cursorX+"H");
 	//hack for insert near buffer bottom
@@ -306,6 +306,39 @@ const specializedCallbackChainKeyListener =
 	}
 }
 
+const request = (method, url, token, name, data) => {
+	return new Promise(function (resolve, reject) {
+		var xhr = new XMLHttpRequest();
+		xhr.open(method, url);
+		xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
+		xhr.setRequestHeader('Authorization', 'token '+token);
+
+		xhr.onreadystatechange = function () {
+		    if (this.readyState != 4) return;
+
+		    if (this.status == 200 || this.status == 201) {
+		        resolve(xhr.responseText);
+		    }
+
+		    reject(this.status);
+		};
+		if (method === "POST" || method === "PATCH") {
+			let dataToSend = {
+				description: name,
+				files: {
+					"data.json": {
+						content: data
+					}
+				}
+			}
+			xhr.send(JSON.stringify(dataToSend, null, 4));
+		}
+		else {
+			xhr.send();
+		}
+	});
+}
+
 const getBrowserBackend = (appState) => {
 	let term = new Terminal({
 		rows: 10,
@@ -377,19 +410,129 @@ const getBrowserBackend = (appState) => {
 	);
 
 	let dataLayer = {
-		readFileSync: (path) => {
-			throw new Error("Not supported!");
-		},
-		readFile: (path, callback) => {
-			setTimeout(()=>{callback("Not supported!");},0);
-		},
-		writeFile: (path, data, callback) => {
-			setTimeout(()=>{callback("Not supported!");},0);
-		},
-		isFile: (path) => {
-			throw new Error("Not supported!");
+		mode: "gist"
+	}
+
+	dataLayer.readFileSync = (path) => {
+		throw new Error("Not supported!");
+	};
+	dataLayer.readFile = (path, callback) => {
+		setTimeout(()=>{callback("Not supported!");},0);
+	};
+	dataLayer.writeFile = (path, data, callback) => {
+		setTimeout(()=>{callback("Not supported!");},0);
+	};
+	dataLayer.readData = (callback) => {
+		if (dataLayer.mode === "gist") {
+			request("GET",
+					"https://api.github.com/gists",
+					dataLayer.gistToken
+			).then(
+				(allGists) => {
+					let gistId = "";
+					allGists = JSON.parse(allGists);
+
+					for (let i = 0; i < allGists.length; i++) {
+						let gist = allGists[i];
+						if (gist.public === true) {
+							continue
+						}
+						if (gist.description === dataLayer.gistName) {
+							gistId = gist.id;
+							break;
+						}
+					}
+
+					if (gistId === "") {
+						return Promise.reject("Gist not found!");
+					}
+					else {
+						return request("GET",
+							"https://api.github.com/gists/"+gistId,
+							dataLayer.gistToken
+						);
+					}
+				}
+			)
+			.then((gistResponse) => {
+				let response = JSON.parse(gistResponse);
+
+				return Promise.resolve(response.files["data.json"].content);
+			})
+			.then((data)=>{callback(null, data);})
+			.catch(callback);
+		}
+		else {
+			setTimeout(()=>{callback("Not supported!")},0);
 		}
 	};
+	dataLayer.writeData = (data, callback) => {
+		if (dataLayer.mode === "gist") {
+			console.log("1")
+			request("GET",
+					"https://api.github.com/gists",
+					dataLayer.gistToken
+			).then(
+				(allGists) => {
+					let gistId = "";
+					allGists = JSON.parse(allGists);
+
+					for (let i = 0; i < allGists.length; i++) {
+						let gist = allGists[i];
+						if (gist.public === true) {
+							continue
+						}
+						if (gist.description === dataLayer.gistName) {
+							gistId = gist.id;
+							break;
+						}
+					}
+
+					if (gistId === "") {
+						return request(
+							"POST",
+							"https://api.github.com/gists",
+							dataLayer.gistToken,
+							dataLayer.gistName,
+							data
+						)
+					}
+					else {
+						return request(
+							"PATCH",
+							"https://api.github.com/gists/"+gistId,
+							dataLayer.gistToken,
+							dataLayer.gistName,
+							data
+						)
+					}
+				}
+			)
+			.then((data)=>{callback(null, data);})
+			.catch(callback);
+		}
+		else {
+			setTimeout(()=>{callback("Not supported!")},0);
+		}
+	};
+	dataLayer.isFile = (path) => {
+		throw new Error("Not supported!");
+	};
+	dataLayer.useGist = () => {
+		dataLayer.mode = "gist";
+	};
+	dataLayer.useFs = () => {
+		throw new Error("Not supported");
+	};
+	dataLayer.setGistName = (gistName) => {
+		dataLayer.gistName = gistName;
+	};
+	dataLayer.setGistToken = (gistToken) => {
+		dataLayer.gistToken = gistToken;
+	}
+	dataLayer.setDataFilePath = (filePath) => {
+		throw new Error("Not supported!");
+	}
 
 	let result = {
 		dataLayer: dataLayer,

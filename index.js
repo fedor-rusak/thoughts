@@ -15,6 +15,7 @@ import getRealTerminalBackend from "./lib/real-terminal-backend.js";
 
 const currentBackend = getRealTerminalBackend();
 
+
 let dataFilePath = process.argv.slice(2)[0] || './data.json';
 try {
 	if (currentBackend.dataLayer.isFile(dataFilePath) === false) {
@@ -25,10 +26,11 @@ catch (e) {
 	dataFilePath = './data.json';
 }
 
+currentBackend.dataLayer.setDataFilePath(dataFilePath);
+
 
 let appState = createAppState({
 	terminalSize: currentBackend.getTerminalSize(),
-	dataFilePath: dataFilePath,
 	initialCommands: [
 		[
 			{color: "grey", text: "# Data file: "},
