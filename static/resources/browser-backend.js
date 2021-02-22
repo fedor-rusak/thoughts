@@ -468,7 +468,6 @@ const getBrowserBackend = (appState) => {
 	};
 	dataLayer.writeData = (data, callback) => {
 		if (dataLayer.mode === "gist") {
-			console.log("1")
 			request("GET",
 					"https://api.github.com/gists",
 					dataLayer.gistToken
