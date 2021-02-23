@@ -1,6 +1,13 @@
 "use strict";
 
-import {moveCursor, deleteLine, cursorDown, cursorUp, scrollTextUpper} from '../lib/vt100-sequences.js';
+import {
+	moveCursor,
+	deleteLine,
+	cursorDown,
+	cursorUp,
+	scrollTextUpper
+} from '../lib/vt100-sequences.js';
+import {readGistAsync, writeGistAsync} from '../lib/gist-helpers.js';
 
 const getMutableStream = (writeable) => {
 	let muted = false;
@@ -305,6 +312,13 @@ const specializedCallbackChainKeyListener =
 }
 
 const request = (method, url, token, name, data) => {
+	let nameIsWrong = 
+		name === null || name === undefined || name === "";
+	let methodIsModification = method === "POST" || method === "PATCH";
+	if (nameIsWrong && methodIsModification) {
+		return Promise.reject("gist-name is wrong");
+	}
+
 	return new Promise(function (resolve, reject) {
 		var xhr = new XMLHttpRequest();
 		xhr.open(method, url);
@@ -422,43 +436,7 @@ const getBrowserBackend = (appState) => {
 	};
 	dataLayer.readData = (callback) => {
 		if (dataLayer.mode === "gist") {
-			request("GET",
-					"https://api.github.com/gists",
-					dataLayer.gistToken
-			).then(
-				(allGists) => {
-					let gistId = "";
-					allGists = JSON.parse(allGists);
-
-					for (let i = 0; i < allGists.length; i++) {
-						let gist = allGists[i];
-						if (gist.public === true) {
-							continue
-						}
-						if (gist.description === dataLayer.gistName) {
-							gistId = gist.id;
-							break;
-						}
-					}
-
-					if (gistId === "") {
-						return Promise.reject("Gist not found!");
-					}
-					else {
-						return request("GET",
-							"https://api.github.com/gists/"+gistId,
-							dataLayer.gistToken
-						);
-					}
-				}
-			)
-			.then((gistResponse) => {
-				let response = JSON.parse(gistResponse);
-
-				return Promise.resolve(response.files["data.json"].content);
-			})
-			.then((data)=>{callback(null, data);})
-			.catch(callback);
+			readGistAsync(request, dataLayer, callback);
 		}
 		else {
 			setTimeout(()=>{callback("Not supported!")},0);
@@ -466,47 +444,7 @@ const getBrowserBackend = (appState) => {
 	};
 	dataLayer.writeData = (data, callback) => {
 		if (dataLayer.mode === "gist") {
-			request("GET",
-					"https://api.github.com/gists",
-					dataLayer.gistToken
-			).then(
-				(allGists) => {
-					let gistId = "";
-					allGists = JSON.parse(allGists);
-
-					for (let i = 0; i < allGists.length; i++) {
-						let gist = allGists[i];
-						if (gist.public === true) {
-							continue
-						}
-						if (gist.description === dataLayer.gistName) {
-							gistId = gist.id;
-							break;
-						}
-					}
-
-					if (gistId === "") {
-						return request(
-							"POST",
-							"https://api.github.com/gists",
-							dataLayer.gistToken,
-							dataLayer.gistName,
-							data
-						)
-					}
-					else {
-						return request(
-							"PATCH",
-							"https://api.github.com/gists/"+gistId,
-							dataLayer.gistToken,
-							dataLayer.gistName,
-							data
-						)
-					}
-				}
-			)
-			.then((data)=>{callback(null, data);})
-			.catch(callback);
+			writeGistAsync(request, dataLayer, data, callback);
 		}
 		else {
 			setTimeout(()=>{callback("Not supported!")},0);
