@@ -311,7 +311,13 @@ const specializedCallbackChainKeyListener =
 	}
 }
 
-const request = (method, url, token, name, data) => {
+/**
+ * Request to Github Gist service
+ * @param {string} [name] - Description field value of gist
+ *
+ * @return {Promise<string>} - Response text
+ */
+const request = (method, path, token, name, data) => {
 	let nameIsWrong = 
 		name === null || name === undefined || name === "";
 	let methodIsModification = method === "POST" || method === "PATCH";
@@ -321,7 +327,7 @@ const request = (method, url, token, name, data) => {
 
 	return new Promise(function (resolve, reject) {
 		var xhr = new XMLHttpRequest();
-		xhr.open(method, url);
+		xhr.open(method, "https://api.github.com"+path);
 		xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
 		xhr.setRequestHeader('Authorization', 'token '+token);
 
@@ -331,8 +337,9 @@ const request = (method, url, token, name, data) => {
 		    if (this.status == 200 || this.status == 201) {
 		        resolve(xhr.responseText);
 		    }
-
-		    reject(this.status);
+		    else {
+		    	reject(this.status);
+			}
 		};
 		if (method === "POST" || method === "PATCH") {
 			let dataToSend = {
@@ -349,6 +356,24 @@ const request = (method, url, token, name, data) => {
 			xhr.send();
 		}
 	});
+}
+
+const xhrGet = (path, callback) => {
+	var xhr = new XMLHttpRequest();
+	xhr.open("GET", path);
+
+	xhr.onreadystatechange = function () {
+		if (this.readyState != 4) return;
+
+	    if (this.status == 200) {
+			callback(null, xhr.responseText);
+		} 
+		else { 
+			callback(this.status);
+		}
+	};
+
+	xhr.send();
 }
 
 const getBrowserBackend = (appState) => {
@@ -425,8 +450,8 @@ const getBrowserBackend = (appState) => {
 		mode: "gist"
 	}
 
-	dataLayer.readFileSync = (path) => {
-		throw new Error("Not supported!");
+	dataLayer.readBundledData = (path, callback) => {
+		xhrGet("../"+path, callback);
 	};
 	dataLayer.readFile = (path, callback) => {
 		setTimeout(()=>{callback("Not supported!");},0);
