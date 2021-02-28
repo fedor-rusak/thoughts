@@ -48,6 +48,7 @@ You can enter any of these commands:
 * development-thoughts - thoughts I got while developing this app
 * use-fs, use-gist - to choose data save/load mechanism (use-fs does NOT work in browser)
 * gist-name, gist-token - to use github gist as storage
+* search - work in progress! Esq or q to exit
 
 Hit ESC or Ctrl-C to exit.
 

@@ -241,7 +241,8 @@ const initialKeyCallback = (backend, bufferState, appState, event) => {
 	}
 	else if (appState.mode !== "browse"
 			&& appState.mode !== "records"
-			&& appState.mode !== "thoughts"){
+			&& appState.mode !== "thoughts"
+			&& appState.mode !== "search"){
 		
 		if (bufferState.index === bufferState.data.length) {
 			bufferState.data += key;
