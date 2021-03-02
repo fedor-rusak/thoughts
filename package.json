@@ -1,6 +1,6 @@
 {
   "name": "thoughts",
-  "version": "1.0.26",
+  "version": "1.0.27",
   "description": "Playing with idea of writing down random ideas.",
   "type": "module",
   "main": "index.js",
