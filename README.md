@@ -65,6 +65,20 @@ And open [localhost:3000](http://localhost:3000) page.
 
 Only Gist for saving/loading!
 
+# ESlint
+
+To ensure code style consistency I integrated [ESLint](https://eslint.org/) that can be called by:
+
+```
+npm run eslint-node
+```
+
+or:
+
+```
+npm run eslint-browser
+```
+
 # Thanks
 
 Big thanks to Isaac Z. Schlueter for his package [mute-stream](https://github.com/isaacs/mute-stream#readme). It was really useful in terminal version of this app.
