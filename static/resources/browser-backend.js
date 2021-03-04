@@ -236,7 +236,8 @@ const initialKeyCallback = (backend, bufferState, appState, event) => {
     else if (appState.mode !== 'browse' &&
             appState.mode !== 'records' &&
             appState.mode !== 'thoughts' &&
-            appState.mode !== 'search') {
+            appState.mode !== 'search' &&
+            appState.mode !== 'search-results') {
         if (bufferState.index === bufferState.data.length) {
             bufferState.data += key;
             bufferState.index += 1;
@@ -275,7 +276,8 @@ const specializedCallbackChainKeyListener =
                 if (appState.mode !== 'thoughts' &&
                     appState.mode !== 'records' &&
                     appState.mode !== 'browse' &&
-                    appState.mode !== 'search') {
+                    appState.mode !== 'search' &&
+                    appState.mode !== 'search-results') {
                     goLine = true;
                 }
                 else {

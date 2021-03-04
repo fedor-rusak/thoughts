@@ -40,7 +40,7 @@ You can enter any of these commands:
 * records - allows to look at current notes in technical format. Use arrows to navigate. ESC or q to exit.
 * save - save records to from DataLayer
 * load - load records from from DataLayer
-* thoughts - nice style of visualizing notes one by one. Up/down arrows to navigate and ESQ/q to exit. Enter to choose note for editing.
+* thoughts - nice style of visualizing notes one by one. Up/down arrows to navigate and ESC/q to exit. Enter to choose note for editing.
 * drop - for deleting chosen note
 * new - to start new note from scratch
 * browse - to see thoughts sorted by tag (date by default). Up and down to navigate across tag index. Left and right to choose tag for index. Enter to choose note for editing.
@@ -48,7 +48,7 @@ You can enter any of these commands:
 * development-thoughts - thoughts I got while developing this app
 * use-fs, use-gist - to choose data save/load mechanism (use-fs does NOT work in browser)
 * gist-name, gist-token - to use github gist as storage
-* search - work in progress! Esq or q to exit
+* search - ESC or q to exit. Space to toggle tags, Enter to go in results scrolling mode (with ESC and q to get back to search UI)
 
 Hit ESC or Ctrl-C to exit.
 
