@@ -411,6 +411,9 @@ const getBrowserBackend = (appState) => {
         index: 0
     }
 
+    let hackFlag = false;
+    const russianLetters = "абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
+
     term.attachCustomKeyEventHandler(
         (event) => {
             bufferState.isData = false;
@@ -419,6 +422,14 @@ const getBrowserBackend = (appState) => {
                 bufferState.isData = true;
                 //TO-DO why?
                 return false;
+            }
+
+            if (hackFlag === false && event.type === 'keyup' && event.keyCode === 229) {
+                hackFlag = true;
+            }
+
+            if (hackFlag && event.type === 'keyup' && russianLetters.indexOf(event.key) !== -1) {
+                initialKeyCallback({stdout: term, mutableOutput}, bufferState, appState, {key: event.key, domEvent: {}});
             }
 
             return true;
