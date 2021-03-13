@@ -433,6 +433,11 @@ const getBrowserBackend = (appState) => {
 
             if (hackFlag && event.type === 'keyup' && russianLetters.indexOf(event.key) !== -1) {
                 initialKeyCallback({stdout: term, mutableOutput}, bufferState, appState, {key: event.key, domEvent: {}});
+
+                if (event.key === 'й' && callbackChain.onKey) {
+                    const keyEvent = getKeyEvent(event.key);
+                    callbackChain.onKey(event.key, keyEvent);
+                }
             }
 
             return true;
