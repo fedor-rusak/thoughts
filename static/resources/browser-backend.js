@@ -166,7 +166,10 @@ const initialKeyCallback = (backend, bufferState, appState, event) => {
     const key = event.key;
     const domEvent = event.domEvent;
 
-    if (domEvent.key === 'ArrowRight' && domEvent.altKey === true) {
+    if (key === '\u0000') {
+        //it is triggered on language change on android
+    }
+    else if (domEvent.key === 'ArrowRight' && domEvent.altKey === true) {
         //this is alt+left which is move one word left
         console.log('alt+right');
         stopDomEventPropagation(domEvent);
@@ -412,7 +415,7 @@ const getBrowserBackend = (appState) => {
     }
 
     let hackFlag = false;
-    const russianLetters = "абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
+    const russianLetters = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ';
 
     term.attachCustomKeyEventHandler(
         (event) => {
