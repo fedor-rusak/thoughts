@@ -287,7 +287,7 @@ const specializedCallbackChainKeyListener =
                     goKey = true;
                 }
             }
-            if (key === 'q' || key === '\u001b' ||
+            if (key === 'q' || key === 'й' || key === '\u001b' ||
                 key === '\u001b[A' || key === '\u001b[B' ||
                 key === '\u001b[C' || key === '\u001b[D') {
                 goKey = true;
